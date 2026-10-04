@@ -10,6 +10,8 @@ static NSString *const kAPI = @"https://api.spicylyrics.org/v1/lyrics/";
 // the dashboard's "no Origin header" option; do not put a secret `sl_sk_...` key in the tweak.
 static NSString *const kAPIKey = @"sl_sk_zUXGscdeC1nNZ69WfKeKqF38KJzrMUzRiIVXIiCoYUk";
 
+static const NSTimeInterval kTimeout = 6;
+
 static NSString *string(id value) {
     return [value isKindOfClass:NSString.class] ? value : nil;
 }
@@ -23,6 +25,10 @@ static SGKaraokeLine *lineFrom(id value, BOOL wordTimed) {
     NSDictionary *entry = value;
     NSArray *syllables = [entry[@"Syllables"] isKindOfClass:NSArray.class] ? entry[@"Syllables"] : nil;
     NSMutableArray<SGKaraokeWord *> *words = [NSMutableArray array];
+    // `IsPartOfWord` belongs to the syllable that continues into the next one. Applying it to
+    // that syllable joined it to the preceding word ("an" + "or"), rather than the syllable
+    // after it ("or" + "deal").
+    BOOL previousContinues = NO;
     for (NSDictionary *syllable in syllables) {
         if (![syllable isKindOfClass:NSDictionary.class]) continue;
         NSString *text = string(syllable[@"Text"]);
@@ -31,8 +37,9 @@ static SGKaraokeLine *lineFrom(id value, BOOL wordTimed) {
         word.text = text;
         word.start = milliseconds(syllable[@"StartTime"]);
         word.end = MAX(word.start, milliseconds(syllable[@"EndTime"]));
-        word.joined = [syllable[@"IsPartOfWord"] boolValue];
+        word.joined = words.count && previousContinues;
         [words addObject:word];
+        previousContinues = [syllable[@"IsPartOfWord"] boolValue];
     }
     if (!words.count) {
         NSString *text = string(entry[@"Text"]);
@@ -121,6 +128,23 @@ static SGLyricsResult *resultFrom(id root) {
     return result;
 }
 
+// SGLyricsGetJSON deliberately answers on the main queue, which is right for the usual small
+// source replies. A dense Spicy Lyrics payload can have hundreds of syllables, though, so decode
+// it on URLSession's worker before entering the source walk.
+static void getJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root)) {
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:kTimeout];
+    [headers enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
+        [request setValue:value forHTTPHeaderField:name];
+    }];
+    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+        SGLyricsNoteReply(response, error);
+        if (error || status >= 400) SGLog(@"spicylyrics: %@ answered %ld, error %@", url.host, (long)status, error);
+        id root = !error && status < 400 && data.length ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        dispatch_async(dispatch_get_main_queue(), ^{ done(root); });
+    }] resume];
+}
+
 SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
     if (kAPIKey.length == 0 || [kAPIKey containsString:@"REPLACE_"]) {
         SGLog(@"spicylyrics: add this install's publishable API key before enabling the source");
@@ -133,12 +157,19 @@ SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResu
         return;
     }
     NSURL *url = [NSURL URLWithString:[kAPI stringByAppendingString:query.trackID]];
-    SGLyricsGetJSON(url, @{@"Authorization": [@"Bearer " stringByAppendingString:kAPIKey]}, ^(id root) {
-        SGLyricsResult *result = resultFrom(root);
-        SGLog(@"spicylyrics: %@ gave %@", query.trackID, !result ? @"nothing"
-              : result.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)result.karaokeLines.count]
-              : result.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)result.karaokeLines.count]
-              : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)result.karaokeLines.count]);
-        done(result);
+    getJSON(url, @{@"Authorization": [@"Bearer " stringByAppendingString:kAPIKey]}, ^(id root) {
+        // Parsing hundreds of syllables and creating their karaoke model used to happen on the
+        // main queue, in the same turn that Spotify selects a track. Keep that work off the
+        // transition, then rejoin the source walk on its required main queue.
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            SGLyricsResult *result = resultFrom(root);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                SGLog(@"spicylyrics: %@ gave %@", query.trackID, !result ? @"nothing"
+                      : result.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)result.karaokeLines.count]
+                      : result.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)result.karaokeLines.count]
+                      : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)result.karaokeLines.count]);
+                done(result);
+            });
+        });
     });
 };

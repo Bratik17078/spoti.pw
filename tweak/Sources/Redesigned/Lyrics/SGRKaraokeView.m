@@ -29,9 +29,10 @@ static const CGFloat kBubbleSide = 22, kBubbleGap = 8, kBubbleGlyph = 11, kBubbl
 static const CGFloat kUnderlineDrop = 1, kUnderlineWidth = 2, kUnderlineAlpha = 0.35;
 // The line naming the source, under the lyrics and outside the fade so it does not dim with them.
 static const CGFloat kCreditSize = 12, kCreditAlpha = 0.4, kCreditBottom = 10;
+static const CGFloat kCreditMaxHeight = 54;
 // The button for the pronunciation and the translation, in the bottom leading corner as Apple Music
 // has it, and the gap between it and the credit beside it.
-static const CGFloat kExtrasSide = 44, kExtrasBottom = 12, kExtrasGlyph = 17, kExtrasCreditGap = 12;
+static const CGFloat kExtrasSide = 44, kExtrasBottom = 12, kExtrasGlyph = 17;
 static const NSTimeInterval kRestyleFade = 0.3;   // the lines crossfading to a new style
 static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
 static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
@@ -1111,6 +1112,7 @@ typedef struct {
     _credit.editable = NO;
     _credit.selectable = YES;
     _credit.scrollEnabled = NO;
+    _credit.textAlignment = NSTextAlignmentCenter;
     _credit.textContainerInset = UIEdgeInsetsZero;
     _credit.textContainer.lineFragmentPadding = 0;
     _credit.linkTextAttributes = @{NSForegroundColorAttributeName: [UIColor colorWithWhite:1 alpha:kCreditAlpha],
@@ -1119,7 +1121,10 @@ typedef struct {
     _crediting = SGFlag(SGKeyLyricsCredit, NO);
     _sweepsEstimates = SGFlag(SGKeyLyricsSimulateWords, NO);
     [self addSubview:_credit];
-    [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
+    // Keep the text view's profile links tappable; the lyric seek recognizer only observes them.
+    tap.cancelsTouchesInView = NO;
+    [self addGestureRecognizer:tap];
     [self addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(held:)]];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionEndedNotification object:nil];
@@ -1282,13 +1287,15 @@ typedef struct {
     [super layoutSubviews];
     [self alignFade];
     _scroll.contentSize = self.bounds.size;
-    [_credit sizeToFit];
-    _credit.frame = CGRectMake(_margin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
-                               _credit.bounds.size.width, _credit.bounds.size.height);
-    if (_extras && !_extras.hidden) {
+    BOOL extrasShowing = _extras && !_extras.hidden;
+    if (extrasShowing) {
         _extras.frame = CGRectMake(_margin, self.bounds.size.height - kExtrasSide - kExtrasBottom, kExtrasSide, kExtrasSide);
-        _credit.center = CGPointMake(CGRectGetMaxX(_extras.frame) + kExtrasCreditGap + _credit.bounds.size.width / 2, _extras.center.y);
     }
+    CGFloat creditWidth = MAX(0, self.bounds.size.width - 2 * _margin);
+    CGSize creditSize = [_credit sizeThatFits:CGSizeMake(creditWidth, kCreditMaxHeight)];
+    CGFloat creditBottom = extrasShowing ? kExtrasBottom + kExtrasSide + kCreditBottom : kCreditBottom;
+    _credit.frame = CGRectMake(_margin, self.bounds.size.height - creditSize.height - creditBottom,
+                               creditWidth, creditSize.height);
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
 }
 
