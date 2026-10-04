@@ -1067,7 +1067,7 @@ typedef struct {
     CGFloat _builtWidth;
     BOOL _showing;
     CAGradientLayer *_fade;
-    UILabel *_credit;
+    UITextView *_credit;
     CGFloat _fontSize, _margin, _lineGap, _blurPerLine, _maxBlur;
     BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
     double _clock;
@@ -1104,9 +1104,17 @@ typedef struct {
     _scroll.scrollsToTop = NO;
     _scroll.delegate = self;
     [self addSubview:_scroll];
-    _credit = [[UILabel alloc] initWithFrame:CGRectZero];
+    _credit = [[UITextView alloc] initWithFrame:CGRectZero];
     _credit.font = [UIFont systemFontOfSize:kCreditSize weight:UIFontWeightSemibold];
     _credit.textColor = [UIColor colorWithWhite:1 alpha:kCreditAlpha];
+    _credit.backgroundColor = UIColor.clearColor;
+    _credit.editable = NO;
+    _credit.selectable = YES;
+    _credit.scrollEnabled = NO;
+    _credit.textContainerInset = UIEdgeInsetsZero;
+    _credit.textContainer.lineFragmentPadding = 0;
+    _credit.linkTextAttributes = @{NSForegroundColorAttributeName: [UIColor colorWithWhite:1 alpha:kCreditAlpha],
+                                  NSUnderlineStyleAttributeName: @(NSUnderlineStyleSingle)};
     _credit.hidden = YES;
     _crediting = SGFlag(SGKeyLyricsCredit, NO);
     _sweepsEstimates = SGFlag(SGKeyLyricsSimulateWords, NO);
@@ -1130,6 +1138,7 @@ typedef struct {
 }
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
+    if (!_credit.hidden && CGRectContainsPoint(_credit.frame, [tap locationInView:self])) return;
     if (_extras && !_extras.hidden && CGRectContainsPoint(_extras.frame, [tap locationInView:self])) return;
     CGPoint point = [tap locationInView:_scroll];
     for (SGRKaraokeLineView *view in _shown.allValues) {
@@ -1600,10 +1609,23 @@ typedef struct {
     _dots.frame = CGRectMake(_margin, top, _builtWidth - 2 * _margin, _dots.bounds.size.height);
 }
 
-- (void)creditTo:(NSString *)source {
-    NSString *text = source.length && _crediting ? [NSString stringWithFormat:@"Lyrics from %@", source] : nil;
-    if (text == _credit.text || [text isEqualToString:_credit.text]) return;
-    _credit.text = text;
+- (void)creditTo:(SGLyricsCredit *)credit {
+    BOOL show = credit.provider.length && (_crediting || credit.required);
+    NSMutableAttributedString *text = show ? [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"Lyrics from %@", credit.provider]] : nil;
+    NSDictionary *base = @{NSFontAttributeName: _credit.font, NSForegroundColorAttributeName: _credit.textColor};
+    [text addAttributes:base range:NSMakeRange(0, text.length)];
+    void (^appendPerson)(NSString *, NSString *, NSString *) = ^(NSString *role, NSString *name, NSString *url) {
+        if (!name.length) return;
+        NSString *piece = [NSString stringWithFormat:@" · %@ %@", role, name];
+        NSUInteger start = text.length;
+        [text appendAttributedString:[[NSAttributedString alloc] initWithString:piece attributes:base]];
+        if (url.length) [text addAttribute:NSLinkAttributeName value:url range:NSMakeRange(start + role.length + 4, name.length)];
+    };
+    appendPerson(@"uploaded by", credit.uploader, credit.uploaderURL);
+    appendPerson(@"made by", credit.maker, credit.makerURL);
+    NSString *plain = text.string;
+    if (plain == _credit.text || [plain isEqualToString:_credit.text]) return;
+    _credit.attributedText = text;
     _credit.hidden = !_showing || !text.length;
     [self setNeedsLayout];
 }
@@ -1669,7 +1691,8 @@ typedef struct {
     }
     [self setShowing:_tops != nil];
     // The source is settled a moment after the lines are, so it is asked for until it answers.
-    if (_crediting && _lines && !_credit.text.length) [self creditTo:SGLyricsCreditFor(track)];
+    SGLyricsCredit *credit = SGLyricsCreditFor(track);
+    if ((_crediting || credit.required) && _lines && !_credit.text.length) [self creditTo:credit];
     if (!_tops) return;
     [self alignFade];
     if (_plain) {

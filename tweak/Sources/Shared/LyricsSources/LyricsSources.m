@@ -25,6 +25,9 @@ static NSString *const kLegacyNetEase = @"spotifyglass.neteaseWordTiming";
 @implementation SGLyricsResult
 @end
 
+@implementation SGLyricsCredit
+@end
+
 @implementation SGLyricsQuery
 @end
 
@@ -148,12 +151,13 @@ NSArray<SGLyricsProvider *> *SGLyricsAllProviders(void) {
             provider.detail = detail;
             // A source that matches by Spotify's own track id has everything it needs from the
             // start; the rest wait for the player to name the track before they can search.
-            provider.needsName = ![key isEqualToString:@"musixmatch"];
+            provider.needsName = ![key isEqualToString:@"musixmatch"] && ![key isEqualToString:@"spicylyrics"];
             provider.ask = ask;
             return provider;
         };
         all = @[
             make(@"binilyrics", @"BiniLyrics", @"Apple Music word timing", SGBiniLyricsAsk),
+            make(@"spicylyrics", @"Spicy Lyrics", @"Community and commercial word timing", SGSpicyLyricsAsk),
             make(@"musixmatch", @"Musixmatch", @"Spotify's licensed catalogue", SGMusixmatchAsk),
             make(@"unison", @"Unison", @"Hand-timed, few tracks", SGUnisonAsk),
             make(@"netease", @"NetEase", @"Word timing, censored", SGNetEaseAsk),
@@ -232,7 +236,7 @@ static void learnFrom(SGLyricsQuery *query, SGLyricsResult *result) {
 static NSMutableDictionary<NSString *, id> *sg_kept;
 static NSMutableDictionary<NSString *, NSMutableArray *> *sg_waiting;
 static NSMutableSet<NSString *> *sg_missing;
-static NSMutableDictionary<NSString *, NSString *> *sg_credits;
+static NSMutableDictionary<NSString *, SGLyricsCredit *> *sg_credits;
 // Spotify's own has_lyrics per track, as its metadata said. The player's metadata is read many
 // times a second while a list scrolls, so a value already noted costs one lookup and no write.
 static NSMutableDictionary<NSString *, NSNumber *> *sg_spotifyHas;
@@ -368,12 +372,16 @@ static void step(SGLyricsWalk *walk) {
             merged.karaokeLines = fresh.karaokeLines;
             merged.wordTimed = fresh.wordTimed;
             merged.provider = provider.name;
+            merged.credit = fresh.credit;
         }
         if (betterTexts(merged, fresh)) {
             merged.starts = fresh.starts;
             merged.texts = fresh.texts;
             merged.synced = fresh.synced;
-            if (!merged.provider) merged.provider = provider.name;
+            if (!merged.provider) {
+                merged.provider = provider.name;
+                merged.credit = fresh.credit;
+            }
         }
         step(walk);
     });
@@ -501,17 +509,21 @@ NSString *SGLyricsTranslationLanguage(void) {
     return index > 0 && index < (NSInteger)tags.count ? tags[(NSUInteger)index] : nil;
 }
 
-NSString *SGLyricsCreditFor(NSString *trackID) {
+SGLyricsCredit *SGLyricsCreditFor(NSString *trackID) {
     setUp();
     @synchronized (sg_credits) { return trackID ? sg_credits[trackID] : nil; }
 }
 
-void SGLyricsSetCredit(NSString *trackID, NSString *name) {
+void SGLyricsSetCredit(NSString *trackID, SGLyricsCredit *credit) {
     setUp();
     if (!trackID.length) return;
     @synchronized (sg_credits) {
         if (sg_credits.count >= kKeptTracks) [sg_credits removeAllObjects];
-        sg_credits[trackID] = name ?: @"Spotify";
+        if (!credit) {
+            credit = [SGLyricsCredit new];
+            credit.provider = @"Spotify";
+        }
+        sg_credits[trackID] = credit;
     }
 }
 

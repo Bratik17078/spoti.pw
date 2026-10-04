@@ -159,12 +159,17 @@ static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBod
     NSData *page = replace ? pageBody(chain, colours) : nil;
 
     NSArray<SGKaraokeLine *> *viewLines = nil;
-    NSString *credit = chain.provider;
+    SGLyricsCredit *credit = chain.credit;
     if (chain.karaokeLines.count && (!spotifyLines || SGKaraokeLinesTiming(chain.karaokeLines) <= spotifyTiming)) {
         viewLines = chain.karaokeLines;
     } else if (spotifyLines) {
         viewLines = spotifyLines;
-        credit = @"Spotify";
+        credit = [SGLyricsCredit new];
+        credit.provider = @"Spotify";
+    }
+    if (!credit) {
+        credit = [SGLyricsCredit new];
+        credit.provider = chain.provider.length ? chain.provider : @"Spotify";
     }
     if (viewLines) SGKaraokeKeepLines(track, viewLines);
     SGLyricsSetCredit(track, credit);

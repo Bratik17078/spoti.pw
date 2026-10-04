@@ -19,9 +19,17 @@
 // unset or 0 takes whatever translation the source has.
 #define SGKeyLyricsTranslationLanguage @"spotifyglass.lyricsTranslationLanguage"
 
+// What the lyrics view displays for a source. Spicy Lyrics' community syncs name the people who
+// made them, and their profile URLs let the view make those names actionable.
+@interface SGLyricsCredit : NSObject
+@property (nonatomic, copy) NSString *provider, *uploader, *uploaderURL, *maker, *makerURL;
+@property (nonatomic) BOOL required;
+@end
+
 // What a source answers with, and what the chain merges several of into one.
 @interface SGLyricsResult : NSObject
 @property (nonatomic, copy) NSString *provider;   // the key of the source the lines came from
+@property (nonatomic, strong) SGLyricsCredit *credit;
 @property (nonatomic) BOOL synced;                // the lines have starts of their own
 @property (nonatomic) BOOL wordTimed;             // the words inside them are timed, not estimated
 // Every line as Spotify's lyrics page takes it: ♪ over a break and an empty last line where the
@@ -88,9 +96,9 @@ void SGLyricsNoteSpotifyHas(NSString *trackID, BOOL has);
 id SGLyricsForcedFlag(NSString *key);
 // Set on the requests the mod sends to spclient itself, so the request hook leaves them alone.
 extern NSString *const SGLyricsOwnRequestKey;
-// The name of the source the lines shown for the track came from, nil until they arrive.
-NSString *SGLyricsCreditFor(NSString *trackID);
-void SGLyricsSetCredit(NSString *trackID, NSString *name);
+// The attribution for the source whose lines the track shows, nil until they arrive.
+SGLyricsCredit *SGLyricsCreditFor(NSString *trackID);
+void SGLyricsSetCredit(NSString *trackID, SGLyricsCredit *credit);
 // Turns an install's old Musixmatch switches into an order. Called once, before anything reads one.
 void SGLyricsMigrateLegacyKeys(void);
 
@@ -125,6 +133,7 @@ NSString *SGLyricsTranslationLanguage(void);
 extern SGLyricsAsk SGBiniLyricsAsk;
 extern SGLyricsAsk SGMusixmatchAsk;
 extern SGLyricsAsk SGUnisonAsk;
+extern SGLyricsAsk SGSpicyLyricsAsk;
 extern SGLyricsAsk SGNetEaseAsk;
 extern SGLyricsAsk SGLrcLibAsk;
 
