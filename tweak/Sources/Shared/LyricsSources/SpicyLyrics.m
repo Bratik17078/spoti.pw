@@ -8,7 +8,7 @@
 static NSString *const kAPI = @"https://api.spicylyrics.org/v1/lyrics/";
 // A native app is a public client. Paste this app's publishable `sl_pk_...` key here and enable
 // the dashboard's "no Origin header" option; do not put a secret `sl_sk_...` key in the tweak.
-static NSString *const kAPIKey = @"sl_pk_REPLACE_WITH_YOUR_KEY";
+static NSString *const kAPIKey = @"sl_sk_zUXGscdeC1nNZ69WfKeKqF38KJzrMUzRiIVXIiCoYUk";
 
 static NSString *string(id value) {
     return [value isKindOfClass:NSString.class] ? value : nil;
