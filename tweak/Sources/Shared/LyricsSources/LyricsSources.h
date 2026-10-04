@@ -1,7 +1,7 @@
 // Where lyrics come from. Every source answers the same question — what are this track's lines, and
-// how finely are they timed — and the chain asks them in the order the Lyrics page puts them in,
-// keeping the best answer rather than the first: a source with only plain text does not shut out a
-// later one that times every word.
+// how finely are they timed — and the walk asks them in the order the Lyrics page puts them in, the
+// next going ahead while the last is still out, keeping the best answer rather than the first: a
+// source with only plain text does not shut out a later one that times every word.
 //
 // SGTTML.m reads the TTML that Apple Music's own lyrics are written in, which is what BiniLyrics and
 // Unison serve. It is the only shape carrying a second voice and the (oh, aye) sung under a line; every other source times lines, or the words inside them, and nothing more.
@@ -78,7 +78,8 @@ NSArray<NSString *> *SGLyricsOrder(void);
 void SGLyricsSetOrder(NSArray<NSString *> *keys);
 BOOL SGLyricsEnabled(void);   // any source at all is on
 
-// Asks the sources in order and merges what they give, on the main queue. nil when none had lyrics.
+// Asks the sources in their order and merges what they give, on the main queue, an answer within a
+// moment of the first ask however many sources are slow or silent. nil when none had lyrics.
 void SGLyricsFetch(NSString *trackID, void (^done)(SGLyricsResult *result));
 // NO once every source has said it has nothing for the track; safe from any thread.
 BOOL SGLyricsMayHave(NSString *trackID);

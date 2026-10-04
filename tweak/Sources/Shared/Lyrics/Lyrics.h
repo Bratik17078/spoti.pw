@@ -113,3 +113,5 @@ id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the a
 SPTPlayerTrack *SGKaraokeTrackFor(NSString *trackID);
 // Keeps a track seen elsewhere, so a source can name it before the player has reported it.
 void SGKaraokeRememberTrack(SPTPlayerTrack *track);
+// The same with the track's id already at hand, for callers that have parsed the URI themselves.
+void SGKaraokeRememberTrackWithID(SPTPlayerTrack *track, NSString *trackID);

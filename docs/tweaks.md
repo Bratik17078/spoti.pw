@@ -79,8 +79,9 @@ Shared:
                   color-lyrics and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line
                   times (KaraokeTiming.m), which line to name where two voices sing at once (the one that came in first,
                   for the lock screen and the Live Activity), and the Lyrics page's parts
-    LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
-                  best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
+    LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in — the
+                  next going ahead while the last is out, the whole walk answered within a moment — and merged
+                  into the best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which carries a second voice and the
                   backing vocals, and in its head Apple's translation and its pronunciation of a line, the pronunciation
                   timed word by word (the translation taken in the Lyrics page's language); Musixmatch.m, matched by

@@ -567,7 +567,7 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
     if (!track) return metadata;
     BOOL has = [@"true" isEqual:metadata[@"has_lyrics"]];
     SGLyricsNoteSpotifyHas(track, has);
-    SGKaraokeRememberTrack(self);
+    SGKaraokeRememberTrackWithID(self, track);
     if (has || !SGLyricsMayHave(track)) return metadata;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ SGLog(@"lyrics: has_lyrics forced on, first for spotify:track:%@", track); });

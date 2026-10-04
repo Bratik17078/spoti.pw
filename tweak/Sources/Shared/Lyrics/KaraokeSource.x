@@ -34,7 +34,7 @@ static NSMutableDictionary<NSString *, SPTPlayerTrack *> *sg_seenTracks;
 static __weak SPTPlayerTrack *sg_lastSeen;
 static NSString *sg_lastSeenID;   // the player makes a new track object on every state it reports, so the id is what tells a change
 static BOOL sg_ownSources;   // a source of the mod's answers the color-lyrics request, not Spotify
-static char kBodyKey;
+static char kBodyKey, kHeadersKey;
 
 static NSString *trackInURL(NSURL *url) {
     NSString *path = url.path;
@@ -94,11 +94,22 @@ void SGKaraokeKeepLines(NSString *track, NSArray<SGKaraokeLine *> *lines) {
     dispatch_async(dispatch_get_main_queue(), ^{ keep(track, lines); });
 }
 
+// Both hooks below see every chunk of every response in the app, so what can be done once is done
+// once per task: the headers are read off the first chunk, and a task known to be a lyrics one has
+// its bytes appended without the URL parsed again.
 static void received(NSURLSession *session, NSURLSessionTask *task, NSData *data) {
-    rememberHeaders(session, task.currentRequest);
-    if (sg_ownSources || !trackInURL(task.currentRequest.URL)) return;
+    if (!objc_getAssociatedObject(task, &kHeadersKey)) {
+        objc_setAssociatedObject(task, &kHeadersKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        rememberHeaders(session, task.currentRequest);
+    }
     NSMutableData *body = objc_getAssociatedObject(task, &kBodyKey);
-    if (!body) objc_setAssociatedObject(task, &kBodyKey, (body = [NSMutableData data]), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (body) {
+        [body appendData:data];
+        return;
+    }
+    if (sg_ownSources || !trackInURL(task.currentRequest.URL)) return;
+    body = [NSMutableData data];
+    objc_setAssociatedObject(task, &kBodyKey, body, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [body appendData:data];
 }
 
@@ -246,9 +257,12 @@ static NSString *idOf(SPTPlayerTrack *track) {
 }
 
 // Tracks come in from the player and from every list that reads their metadata, so when the table
-// is full it is emptied, all but the track playing, whose name the next lyrics request needs.
+// is full it is emptied, all but the track playing, whose name the next lyrics request needs. A
+// track already kept under this id is left alone: the metadata getter is read many times a second
+// for the same objects while a list scrolls, and each read used to parse its URI and write again.
 static void remember(SPTPlayerTrack *track, NSString *trackID) {
     @synchronized (sg_seenTracks) {
+        if (sg_seenTracks[trackID] == track) return;
         if (sg_seenTracks.count >= kSeenTracks) {
             [sg_seenTracks removeAllObjects];
             SPTPlayerTrack *playing = sg_lastSeen;
@@ -268,6 +282,12 @@ void SGKaraokeRememberTrack(SPTPlayerTrack *track) {
     if (!sg_seenTracks) return;
     NSString *trackID = idOf(track);
     if (trackID) remember(track, trackID);
+}
+
+// The same with the id already at hand, for the callers that have parsed the track's URI themselves.
+void SGKaraokeRememberTrackWithID(SPTPlayerTrack *track, NSString *trackID) {
+    if (!sg_seenTracks || !trackID) return;
+    remember(track, trackID);
 }
 
 // With a source of the mod's on, the walk for a track starts the moment the player moves to it and,
