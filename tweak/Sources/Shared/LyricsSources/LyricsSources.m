@@ -1,15 +1,12 @@
 // The walk: every source in the order the Lyrics page puts them in, the best answer winning rather
 // than the first — a source with only plain text does not shut out a later one that times every word.
 //
-// Answering fast is what makes the lyrics card under the player appear at all. The card waits for
-// Spotify's lyrics reply, which waits for the walk, and the player gives its cards only a fixed
-// moment to load before it shows the list without them: a walk that asked every source one after
-// another for word timing took five seconds and more, and the player sat unresponsive for all of it
-// while the song played on. So the order is still the priority, as it reads on the Lyrics page — a
-// source further down goes ahead only after those above have been given their moment — but a source
-// that has not answered within kStagger is left out there and the next starts over it, and the walk
-// answers within kWalkDeadline however many are still out. What arrives after that is merged and
-// kept all the same, for the next time the track is asked for.
+// Walks are prefetched on track changes. Spotify's URLSession hooks only read a completed snapshot;
+// they never wait for this work, so a slow source cannot stall the player or its card list. The order
+// is still the priority, as it reads on the Lyrics page — a source further down goes ahead only after
+// those above have been given their moment — but a source that has not answered within kStagger is
+// left out there and the next starts over it. What arrives after kWalkDeadline is merged and kept for
+// the next time the track is asked for.
 #import "Core/SGCore.h"
 #import "LyricsSources.h"
 #import "Shared/Lyrics/Lyrics.h"
@@ -250,9 +247,10 @@ static void learnFrom(SGLyricsQuery *query, SGLyricsResult *result) {
 
 #pragma mark - the walk
 
-// Main queue only, except sg_missing and sg_credits.
+// Main queue only, except sg_ready, sg_missing and sg_credits.
 static NSMutableDictionary<NSString *, id> *sg_kept;
 static NSMutableDictionary<NSString *, NSMutableArray *> *sg_waiting;
+static NSMutableDictionary<NSString *, SGLyricsResult *> *sg_ready;
 static NSMutableSet<NSString *> *sg_missing;
 static NSMutableDictionary<NSString *, SGLyricsCredit *> *sg_credits;
 // Spotify's own has_lyrics per track, as its metadata said. The player's metadata is read many
@@ -265,10 +263,31 @@ static void setUp(void) {
     dispatch_once(&once, ^{
         sg_kept = [NSMutableDictionary dictionary];
         sg_waiting = [NSMutableDictionary dictionary];
+        sg_ready = [NSMutableDictionary dictionary];
         sg_missing = [NSMutableSet set];
         sg_credits = [NSMutableDictionary dictionary];
         sg_spotifyHas = [NSMutableDictionary dictionary];
     });
+}
+
+// A walk's merged object can still improve after its waiters were answered. Publish a shallow,
+// immutable snapshot instead of handing that live main-queue object to URLSession's delegate queue.
+static SGLyricsResult *snapshot(SGLyricsResult *result) {
+    if (!result) return nil;
+    SGLyricsResult *copy = [SGLyricsResult new];
+    copy.provider = result.provider;
+    copy.credit = result.credit;
+    copy.synced = result.synced;
+    copy.wordTimed = result.wordTimed;
+    copy.starts = result.starts;
+    copy.texts = result.texts;
+    copy.karaokeLines = result.karaokeLines;
+    copy.title = result.title;
+    copy.artist = result.artist;
+    copy.album = result.album;
+    copy.seconds = result.seconds;
+    copy.instrumental = result.instrumental;
+    return copy;
 }
 
 // Whether the source's lines are better than what the walk already has: any lines beat none, and
@@ -340,9 +359,14 @@ static void keep(SGLyricsWalk *walk) {
     // A walk run beside one that already answered must not put worse lines in its place. What is
     // kept is the same object this walk answers with, so a better answer arriving late improves both.
     id have = sg_kept[trackID];
-    if ([have isKindOfClass:SGLyricsResult.class] && !betterLines(have, merged) && !betterTexts(have, merged)) return;
+    if (have != merged && [have isKindOfClass:SGLyricsResult.class] && !betterLines(have, merged) && !betterTexts(have, merged)) return;
     if (sg_kept.count >= kKeptTracks) [sg_kept removeAllObjects];
     sg_kept[trackID] = lyrics ? merged : NSNull.null;
+    @synchronized (sg_ready) {
+        if (sg_ready.count >= kKeptTracks && !sg_ready[trackID]) [sg_ready removeAllObjects];
+        if (lyrics) sg_ready[trackID] = snapshot(merged);
+        else [sg_ready removeObjectForKey:trackID];
+    }
     @synchronized (sg_missing) {
         if (lyrics) [sg_missing removeObject:trackID];
         else [sg_missing addObject:trackID];
@@ -531,6 +555,12 @@ void SGLyricsFetch(NSString *trackID, void (^done)(SGLyricsResult *result)) {
     });
 }
 
+SGLyricsResult *SGLyricsCached(NSString *trackID) {
+    setUp();
+    if (!trackID.length) return nil;
+    @synchronized (sg_ready) { return sg_ready[trackID]; }
+}
+
 BOOL SGLyricsMayHave(NSString *trackID) {
     setUp();
     @synchronized (sg_missing) { return ![sg_missing containsObject:trackID]; }
@@ -562,26 +592,6 @@ void SGLyricsNoteSpotifyHas(NSString *trackID, BOOL has) {
 }
 
 NSString *const SGLyricsOwnRequestKey = @"spotifyglass.ownRequest";
-
-// The cards under the player load together, and the list is shown without any card still loading
-// once this many milliseconds have passed (NowPlaying_ScrollImpl's scrollCardsAsyncLoadingTimeoutMs,
-// 2 s unless the server says otherwise, 1 s at the least). The lyrics card is one of them and waits
-// for the color-lyrics reply, which with a source of the mod's on waits for the walk — answered
-// within a couple of seconds however slow the sources are; the rest of the wait the reply takes is
-// Spotify's own. So the wait is set to the most the flag allows.
-id SGLyricsForcedFlag(NSString *key) {
-    static BOOL on;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ on = SGLyricsEnabled(); });
-    if (!on) return nil;
-    if ([key isEqualToString:@"ios-nowplaying-scroll-impl.scroll_cards_async_loading_timeout_ms"]) return @5000;
-    return nil;
-}
-
-// After an override; no row shows the timeout, so nothing is locked.
-__attribute__((constructor)) static void registerForcer(void) {
-    SGRegisterFlagForcer(NO, ^id(NSString *key) { return SGLyricsForcedFlag(key); }, nil);
-}
 
 #pragma mark - the language of translations
 

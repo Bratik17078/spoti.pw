@@ -90,12 +90,12 @@ Shared:
                   track id and carrying the provider's community credits. color-lyrics is answered with whichever won
                   (LyricsHook.x): Spotify's own 200 gets our lines swapped in; a track Spotify's metadata says has none has
                   its request sent to a donor track that does, so the reply is a real 200 (a 404 answered as a 200 in the
-                  delegate alone never showed the card on 9.1.78); a 404 for a track not seen yet is held until the chain
-                  answers. The card list the server sends per track (scrollsita) carries a lyrics section only for tracks
+                  delegate alone never showed the card on 9.1.78); a 404 is replaced only when the track-change prefetch
+                  has already answered, otherwise it goes through immediately. The card list the server sends per track (scrollsita) carries a lyrics section only for tracks
                   Spotify has lyrics for, so one is added to any list without it: that is what makes the player ask for the
-                  lyrics and show the card. has_lyrics is forced on for every track, the walk starts at the track change
-                  for it and the next, and the player's card-loading timeout flag is forced to its 5 s maximum while a
-                  source is on
+                  lyrics and show the card. has_lyrics is forced on for every track and the walk starts at the track
+                  change for it and the next; the response hook uses only an already-prefetched answer and never holds
+                  Spotify's response for a source request
     LockScreenLyrics/ the line being sung in the system's now playing
     LockScreenArtwork/ the track's Canvas or its album's Apple Music cover as the lock screen's animated
                   artwork, from iOS 26 (Apple takes an MPMediaItemAnimatedArtwork under one of

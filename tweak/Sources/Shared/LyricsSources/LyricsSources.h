@@ -81,6 +81,9 @@ BOOL SGLyricsEnabled(void);   // any source at all is on
 // Asks the sources in their order and merges what they give, on the main queue, an answer within a
 // moment of the first ask however many sources are slow or silent. nil when none had lyrics.
 void SGLyricsFetch(NSString *trackID, void (^done)(SGLyricsResult *result));
+// A completed result already in memory, or nil. Never starts a request or waits; safe from any
+// thread, for URLSession hooks which must answer Spotify immediately.
+SGLyricsResult *SGLyricsCached(NSString *trackID);
 // NO once every source has said it has nothing for the track; safe from any thread.
 BOOL SGLyricsMayHave(NSString *trackID);
 // Starts the walk for a track before anyone has asked, so the answer is in when Spotify's request
@@ -91,10 +94,6 @@ void SGLyricsPrefetch(NSString *trackID);
 // the donor. Safe from any thread.
 NSInteger SGLyricsSpotifyHas(NSString *trackID);
 void SGLyricsNoteSpotifyHas(NSString *trackID, BOOL has);
-// The remote-config values the lyrics feature forces while a source is on, nil for any other flag:
-// the player gives its cards this long to load before it shows the list without the slow ones, and
-// a source of the mod's can take longer than Spotify's default to answer.
-id SGLyricsForcedFlag(NSString *key);
 // Set on the requests the mod sends to spclient itself, so the request hook leaves them alone.
 extern NSString *const SGLyricsOwnRequestKey;
 // The attribution for the source whose lines the track shows, nil until they arrive.

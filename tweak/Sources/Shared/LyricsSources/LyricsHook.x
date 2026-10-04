@@ -386,7 +386,7 @@ static void answerMissing(id delegate, NSURLSession *session, NSURLSessionDataTa
     if (release) release(choice);
 }
 
-// Main queue, when the chain has answered for a held task. A task that ended meanwhile gets nothing.
+// Called immediately on URLSession's delegate queue with a completed snapshot, if one was prefetched.
 static void answerHeld(id delegate, NSURLSession *session, NSURLSessionDataTask *task, SGLyricsTaskState *state,
                        SGLyricsResult *chain, NSURLResponse *response, SGDisposition handler, SGForwardResponse forward) {
     BOOL ended, cancelled = NO;
@@ -399,7 +399,7 @@ static void answerHeld(id delegate, NSURLSession *session, NSURLSessionDataTask 
         }
     }
     if (ended || cancelled) {
-        SGLog(@"lyrics: the request for %@ ended before the sources answered, nothing delivered", state.track);
+        SGLog(@"lyrics: the request for %@ ended before its cached answer was delivered", state.track);
         // URLSession holds the end of a cancelled task back until it has a disposition.
         if (cancelled) handler(NSURLSessionResponseCancel);
         return;
@@ -422,9 +422,9 @@ static void receivedResponse(id delegate, NSURLSession *session, NSURLSessionDat
         forward(response, handler);
         return;
     }
-    SGLyricsFetch(state.track, ^(SGLyricsResult *chain) {
-        answerHeld(delegate, session, task, state, chain, response, handler, forward);
-    });
+    SGLyricsResult *chain = SGLyricsCached(state.track);
+    if (!chain) SGLyricsPrefetch(state.track);
+    answerHeld(delegate, session, task, state, chain, response, handler, forward);
 }
 
 static BOOL forwardsData(NSURLSessionTask *task, NSData *data) {
@@ -440,7 +440,6 @@ static BOOL forwardsData(NSURLSessionTask *task, NSData *data) {
     }
 }
 
-// Main queue.
 static void finishSpotify(id delegate, NSURLSession *session, NSURLSessionDataTask *task, SGLyricsTaskState *state,
                           NSData *body, NSError *error, SGForwardEnd forward) {
     if (error) {
@@ -452,14 +451,13 @@ static void finishSpotify(id delegate, NSURLSession *session, NSURLSessionDataTa
         forward(nil);
         return;
     }
-    SGLyricsFetch(state.track, ^(SGLyricsResult *chain) {
-        NSData *page = decide(state.track, chain, body, NO, coloursIn(body));
-        give(delegate, session, task, state, page ?: body);
-        forward(nil);
-    });
+    SGLyricsResult *chain = SGLyricsCached(state.track);
+    if (!chain) SGLyricsPrefetch(state.track);
+    NSData *page = decide(state.track, chain, body, NO, coloursIn(body));
+    give(delegate, session, task, state, page ?: body);
+    forward(nil);
 }
 
-// Main queue.
 static void finishDonor(id delegate, NSURLSession *session, NSURLSessionDataTask *task, SGLyricsTaskState *state,
                         NSData *body, NSError *error, SGForwardEnd forward) {
     SGLyricsResult *chain;
@@ -500,19 +498,14 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
         if (!error) give(delegate, session, dataTask, state, amendedCardList(body, state.track));
         forward(error);
     } else if (state.kind == SGLyricsTaskSpotify) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            finishSpotify(delegate, session, dataTask, state, body, error, forward);
-        });
+        finishSpotify(delegate, session, dataTask, state, body, error, forward);
     } else if (held) {
         // Ended while the sources walk: the end goes through now, and their answer to nobody.
         forward(error);
     } else if (state.kind == SGLyricsTaskDonor) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            finishDonor(delegate, session, dataTask, state, body, error, forward);
-        });
+        finishDonor(delegate, session, dataTask, state, body, error, forward);
     } else if (delivering) {
-        // Behind the response and body the main queue is handing over.
-        dispatch_async(dispatch_get_main_queue(), ^{ forward(error); });
+        forward(error);
     } else {
         forward(error);
     }
