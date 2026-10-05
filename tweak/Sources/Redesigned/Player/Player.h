@@ -8,8 +8,7 @@
 //     PlayerField.x      the switch's flags and rows, the field in the background plane, the cover it reads
 //     PlayerArtwork.x    the cover's corners, shadow and paused shrink, the lyric preview under it hidden
 //     PlayerHeader.x     glass behind the close and more buttons
-//     PlayerControls.x   previous, play and next as bare glyphs, monospaced times
-//     PlayerTrackTransition.x the lock-screen-style title and artist push on previous and next
+//     PlayerControls.x   previous, play and next as bare glyphs, the Lock Screen's skip motion, monospaced times
 //     PlayerFooter.x     share gone, lyrics, Connect and queue as one row of three glyphs
 //     PlayerCards.x      every card under the player collapsed, so the list closes up
 //     PlayerScroll.x     the list held at its top, so the player is one screen and cannot be scrolled up

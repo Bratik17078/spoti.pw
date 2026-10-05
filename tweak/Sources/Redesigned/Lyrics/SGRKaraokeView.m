@@ -271,8 +271,8 @@ static const CGFloat kPairTighten = 2, kPairGap = 4, kPartGap = 6;
 @end
 
 // A run of words set in rows as wide as the page: where each goes along its row, which row, and where
-// it sits along the sweep, the rows laid end to end. A joined word follows the one before it flush:
-// the scripts that do not space their words would otherwise read with a gap between every syllable.
+// it sits along the sweep, the rows laid end to end. Pieces joined into a word stay on the same row;
+// an unspaced script is the exception, since each of its joined syllables is a place it may wrap.
 typedef struct {
     CGFloat x, width, offset;
     NSUInteger row;
@@ -280,20 +280,56 @@ typedef struct {
 
 static NSUInteger flow(NSArray<SGKaraokeWord *> *words, UIFont *font, CGFloat width, SGRPlace *places) {
     CGFloat space = ceil([@" " sizeWithAttributes:@{NSFontAttributeName: font}].width), x = 0, offset = 0;
-    NSUInteger row = 0;
+    CGFloat *widths = calloc(words.count + 1, sizeof(CGFloat));
     for (NSUInteger i = 0; i < words.count; i++) {
-        CGFloat wide = ceil([words[i].text sizeWithAttributes:@{NSFontAttributeName: font}].width);
-        CGFloat lead = x > 0 && !words[i].joined ? space : 0;
-        if (x > 0 && x + lead + wide > width) {
-            x = lead = 0;
-            row++;
-        }
-        x += lead;
-        offset += lead;
-        places[i] = (SGRPlace){x, wide, offset, row};
-        x += wide;
-        offset += wide;
+        widths[i] = ceil([words[i].text sizeWithAttributes:@{NSFontAttributeName: font}].width);
     }
+    NSUInteger row = 0;
+    for (NSUInteger i = 0; i < words.count;) {
+        NSUInteger until = i + 1;
+        while (until < words.count && words[until].joined) until++;
+
+        CGFloat groupWidth = 0;
+        for (NSUInteger k = i; k < until; k++) groupWidth += widths[k];
+        BOOL keepTogether = until > i + 1;
+        if (keepTogether) {
+            NSMutableString *text = [NSMutableString string];
+            for (NSUInteger k = i; k < until; k++) [text appendString:words[k].text ?: @""];
+            keepTogether = !SGKaraokeUnspacedScript(text);
+        }
+        if (keepTogether) {
+            CGFloat lead = x > 0 && !words[i].joined ? space : 0;
+            if (x > 0 && x + lead + groupWidth > width) {
+                x = lead = 0;
+                row++;
+            }
+            x += lead;
+            offset += lead;
+            for (NSUInteger k = i; k < until; k++) {
+                CGFloat wide = widths[k];
+                places[k] = (SGRPlace){x, wide, offset, row};
+                x += wide;
+                offset += wide;
+            }
+        } else {
+            // CJK syllables remain flush, but unlike two halves of a Latin word they can start a row.
+            for (NSUInteger k = i; k < until; k++) {
+                CGFloat wide = widths[k];
+                CGFloat lead = x > 0 && !words[k].joined ? space : 0;
+                if (x > 0 && x + lead + wide > width) {
+                    x = lead = 0;
+                    row++;
+                }
+                x += lead;
+                offset += lead;
+                places[k] = (SGRPlace){x, wide, offset, row};
+                x += wide;
+                offset += wide;
+            }
+        }
+        i = until;
+    }
+    free(widths);
     return words.count ? row + 1 : 0;
 }
 
@@ -402,16 +438,15 @@ static CGFloat layPair(NSArray<SGKaraokeWord *> *lead, UIFont *leadFont, NSArray
         }
         NSUInteger subRow = 0;
         if (!fits) {
-            reached = 0;
+            NSArray<SGKaraokeWord *> *part = [under subarrayWithRange:NSMakeRange(from, until - from)];
+            SGRPlace *fallback = calloc(part.count + 1, sizeof(SGRPlace));
+            NSUInteger subRows = flow(part, underFont, width, fallback);
             for (NSUInteger k = from; k < until; k++) {
-                CGFloat wide = places[leads + k].width, lead = reached > 0 && !under[k].joined ? space : 0;
-                if (reached > 0 && reached + lead + wide > width) {
-                    subRow++;
-                    reached = lead = 0;
-                }
-                rects[leads + k] = CGRectMake(reached + lead, underTop + subRow * underRow, wide, underHigh);
-                reached += lead + wide;
+                SGRPlace place = fallback[k - from];
+                rects[leads + k] = CGRectMake(place.x, underTop + place.row * underRow, place.width, underHigh);
             }
+            subRow = subRows ? subRows - 1 : 0;
+            free(fallback);
         }
         for (NSUInteger k = from; k < until; k++) groups[leads + k] = r;
         j = until;

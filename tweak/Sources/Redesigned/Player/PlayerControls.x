@@ -18,9 +18,12 @@
 // inside the unit's view never reaches.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
+#import "Headers/SPTNowPlayingPlaybackController.h"
 #import "Player.h"
 
 static const CGFloat kSkipGlyphSize = 32, kPlayGlyphSize = 44;
+static const CGFloat kSkipPieceSize = 24, kSkipPieceStep = 14;
+static const NSTimeInterval kSkipMotionDuration = 0.42, kSkipFadeDuration = 0.2;
 // A spinner that is still up this long after a state change is buffering, not a track starting.
 static const NSTimeInterval kSpinnerCheck = 0.6;
 
@@ -28,13 +31,23 @@ static const NSTimeInterval kSpinnerCheck = 0.6;
 // one sent before the player caught up, for this long; after it the player's word is final.
 static const NSTimeInterval kTapTrust = 1.2;
 
-static char kPreviousKey, kNextKey, kPlayKey, kGlyphKey, kTakeKey, kRemainingKey;
+static char kPreviousKey, kNextKey, kPlayKey, kGlyphKey, kTakeKey, kRemainingKey, kSkipMotionKey, kSkipTargetKey;
+static __weak SGRGlyphView *sg_previousGlyph;
+static __weak SGRGlyphView *sg_nextGlyph;
 static __weak UIView *sg_playView;
 static __weak UIButton *sg_playButton;
 static CFTimeInterval sg_tappedUntil;
 static BOOL sg_tappedPaused;
 static __weak SGRGlyphView *sg_playGlyph;
 static __weak UIView *sg_controlsHost;
+static CFTimeInterval sg_previousTouchedAt, sg_nextTouchedAt;
+
+@interface SGRSkipAnimator : NSObject
+- (void)previousDown;
+- (void)nextDown;
+@end
+
+static SGRSkipAnimator *sg_skipAnimator;
 
 void SGRPlayerVanish(UIView *view) {
     if (!view) return;
@@ -90,7 +103,114 @@ static void skipGlyph(UIView *host, NSString *identifier, const void *findKey, N
         if (view != glyph && [view isKindOfClass:icon]) SGRPlayerVanish(view);
     });
     keepOnTop(glyph, content);
+    if (findKey == &kPreviousKey) sg_previousGlyph = glyph;
+    else if (findKey == &kNextKey) sg_nextGlyph = glyph;
+    if ([button isKindOfClass:UIControl.class] && !objc_getAssociatedObject(button, &kSkipTargetKey)) {
+        SEL action = findKey == &kPreviousKey ? @selector(previousDown) : @selector(nextDown);
+        [(UIControl *)button addTarget:sg_skipAnimator action:action forControlEvents:UIControlEventTouchDown];
+        objc_setAssociatedObject(button, &kSkipTargetKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
 }
+
+// The Lock Screen's skip symbol behaves like a tiny conveyor: the triangle at the front leaves,
+// the one behind takes its place, and a new one enters from the other edge. It starts with the skip
+// request rather than the next player state, so network or decoding time never makes the control lag.
+static CGAffineTransform skipPieceTransform(BOOL next, CGFloat scale) {
+    return CGAffineTransformMakeScale(next ? scale : -scale, scale);
+}
+
+static UIImageView *skipPiece(UIColor *tint, BOOL next, CGFloat scale) {
+    UIImageSymbolConfiguration *configuration = [UIImageSymbolConfiguration configurationWithPointSize:kSkipPieceSize
+                                                                                                  weight:UIImageSymbolWeightRegular];
+    UIImageView *piece = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"play.fill" withConfiguration:configuration]];
+    piece.tintColor = tint;
+    piece.contentMode = UIViewContentModeCenter;
+    piece.userInteractionEnabled = NO;
+    piece.transform = skipPieceTransform(next, scale);
+    return piece;
+}
+
+static void animateSkipGlyph(SGRGlyphView *glyph, BOOL next) {
+    if (!NSThread.isMainThread) {
+        __weak SGRGlyphView *weakGlyph = glyph;
+        dispatch_async(dispatch_get_main_queue(), ^{ animateSkipGlyph(weakGlyph, next); });
+        return;
+    }
+    UIView *host = glyph.superview;
+    if (!glyph.window || !host || glyph.alpha < 0.01) return;
+
+    UIView *old = objc_getAssociatedObject(glyph, &kSkipMotionKey);
+    [old.layer removeAllAnimations];
+    [old removeFromSuperview];
+    objc_setAssociatedObject(glyph, &kSkipMotionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    glyph.hidden = NO;
+
+    if (SGRReduceMotion()) {
+        [glyph.layer removeAllAnimations];
+        glyph.alpha = 0.45;
+        [UIView animateWithDuration:kSkipFadeDuration delay:0
+                            options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState
+                         animations:^{ glyph.alpha = 1; } completion:nil];
+        return;
+    }
+
+    UIView *motion = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 80, 56)];
+    motion.center = glyph.center;
+    motion.userInteractionEnabled = NO;
+    motion.clipsToBounds = NO;
+    motion.isAccessibilityElement = NO;
+    [host addSubview:motion];
+    objc_setAssociatedObject(glyph, &kSkipMotionKey, motion, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    CGFloat move = next ? kSkipPieceStep : -kSkipPieceStep;
+    CGFloat middleY = CGRectGetMidY(motion.bounds);
+    UIColor *tint = glyph.tintColor ?: UIColor.whiteColor;
+    UIImageView *entering = skipPiece(tint, next, 0.55);
+    UIImageView *middle = skipPiece(tint, next, 1);
+    UIImageView *leaving = skipPiece(tint, next, 1);
+    entering.center = CGPointMake(CGRectGetMidX(motion.bounds) - 1.5 * move, middleY);
+    middle.center = CGPointMake(CGRectGetMidX(motion.bounds) - 0.5 * move, middleY);
+    leaving.center = CGPointMake(CGRectGetMidX(motion.bounds) + 0.5 * move, middleY);
+    entering.alpha = 0;
+    [motion addSubview:entering];
+    [motion addSubview:middle];
+    [motion addSubview:leaving];
+    glyph.hidden = YES;
+
+    [UIView animateKeyframesWithDuration:kSkipMotionDuration delay:0
+                                 options:UIViewKeyframeAnimationOptionCalculationModeCubic
+                                       | UIViewAnimationOptionAllowUserInteraction
+                              animations:^{
+        [UIView addKeyframeWithRelativeStartTime:0 relativeDuration:1 animations:^{
+            entering.center = CGPointMake(entering.center.x + move, middleY);
+            middle.center = CGPointMake(middle.center.x + move, middleY);
+            leaving.center = CGPointMake(leaving.center.x + move, middleY);
+            entering.alpha = 1;
+            entering.transform = skipPieceTransform(next, 1);
+            leaving.alpha = 0;
+            leaving.transform = skipPieceTransform(next, 0.55);
+        }];
+    } completion:^(BOOL finished) {
+        if (objc_getAssociatedObject(glyph, &kSkipMotionKey) != motion) return;
+        objc_setAssociatedObject(glyph, &kSkipMotionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [motion removeFromSuperview];
+        glyph.hidden = NO;
+    }];
+}
+
+@implementation SGRSkipAnimator
+
+- (void)previousDown {
+    sg_previousTouchedAt = CACurrentMediaTime();
+    animateSkipGlyph(sg_previousGlyph, NO);
+}
+
+- (void)nextDown {
+    sg_nextTouchedAt = CACurrentMediaTime();
+    animateSkipGlyph(sg_nextGlyph, YES);
+}
+
+@end
 
 #pragma mark - play
 
@@ -228,6 +348,19 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
 }
 %end
 
+// These are the actions Spotify's buttons and the mod's skip gestures already drive. The glyph
+// answers only a deliberate skip, not the calls made while a draggable control is in flight.
+%hook SPTNowPlayingPlaybackControllerImplementation
+- (void)skipToNextWhileDragging:(BOOL)dragging {
+    if (!dragging && CACurrentMediaTime() - sg_nextTouchedAt > 0.75) animateSkipGlyph(sg_nextGlyph, YES);
+    %orig;
+}
+- (void)skipToPreviousWhileDragging:(BOOL)dragging {
+    if (!dragging && CACurrentMediaTime() - sg_previousTouchedAt > 0.75) animateSkipGlyph(sg_previousGlyph, NO);
+    %orig;
+}
+%end
+
 %hook _TtC20NowPlaying_ModesImpl19DurationElementUnit
 - (void)viewDidLayoutSubviews {
     %orig;
@@ -244,6 +377,7 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
 
 %ctor {
     if (!SGRedesignedUI()) return;
+    sg_skipAnimator = [SGRSkipAnimator new];
     %init;
     sg_controlsWatcher = [SGRPlayerControlsWatcher new];
     SGAddPlayerStateObserver(sg_controlsWatcher);
@@ -251,6 +385,7 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
         @"_TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit",
         @"_TtC20NowPlaying_ModesImpl19DurationElementUnit",
         @"_TtC28EncoreConsumerMobile_BaseKit14PlayButtonView",
+        @"SPTNowPlayingPlaybackControllerImplementation",
         @"SPTEncoreIconView",
     ]);
 }
