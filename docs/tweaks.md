@@ -171,7 +171,8 @@ Redesigned:
                   the Mac against harness/tabbar/
     NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
-    Player/       the redesigned full screen player (Player.h lists its files); its more button is handed to
+    Player/       the redesigned full screen player (Player.h lists its files), including the Lock Screen's
+                  directional title and artist transition on Previous and Next; its more button is handed to
                   Shared/Player's Speed and pitch, which draws in the menu it opens
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): lines sung over each other lit together,
