@@ -95,7 +95,6 @@ SGGestureAction SGHeadGestureAction(SGHeadGesture gesture) {
     }
     if (!_manager.deviceMotionAvailable || _manager.deviceMotionActive) return;
     _calibrated = NO;
-    _manager.deviceMotionUpdateInterval = 1.0 / 60.0;
     __weak typeof(self) weakSelf = self;
     [_manager startDeviceMotionUpdatesToQueue:_queue withHandler:^(CMDeviceMotion *motion, NSError *error) {
         if (!motion || error) return;
@@ -185,10 +184,4 @@ void SGHeadGesturesEndPractice(void) {
     shared.practiceCount = MAX(0, shared.practiceCount - 1);
     if (!shared.practiceCount) shared.practiceHandler = nil;
     [shared refresh];
-}
-
-%ctor {
-    // Route-change notifications wake the listener if AirPods connect later; no private Bluetooth or
-    // in-ear APIs are used.
-    [engine() refresh];
 }
