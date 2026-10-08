@@ -75,9 +75,10 @@ Shared:
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
     Flags/        Spotify's remote-config flags: the provider hook, the generated table, the All flags page and the Labs page
     Gestures/     the double tap zones on the player: the grid, what each cell does, the recognizer (each look hooks it on)
-    HeadGestures/ compatible AirPods and Beats' public head-motion stream: two nods and a left-right
-                  shake, each mapped to one of the player gesture actions, plus a practice circle that
-                  follows the head while actions are safely suspended
+    HeadGestures/ compatible AirPods and Beats' public head-motion stream: single and double nods,
+                  a left-right shake, and left/right head tilts, each mapped to a player action;
+                  sensitivity is adjustable and Practice recentres on entry (or by tapping Recenter)
+                  while its circle follows the head with playback actions suspended
     Lyrics/       the lyrics engine for the redesign's Apple Music style lyrics and the lock screen: lines read from
                   color-lyrics and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line
                   times (KaraokeTiming.m), which line to name where two voices sing at once (the one that came in first,
@@ -261,8 +262,8 @@ is set. Redesigned UI is the one switch between the two looks (see Layers): it g
 (Settings/SGGlowSwitch), its ⓘ says what it changes, and flipping it offers to restart Spotify.
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
-its own list of tabs. Player: Gestures, Head gestures (the configurable actions for two nods and a
-head shake on compatible AirPods or Beats, with a practice circle that follows the head), Lyrics (the ordered list of lyrics sources, lyrics for every track,
+its own list of tabs. Player: Gestures, Head gestures (configurable actions for nods, a shake and
+head tilts on compatible AirPods or Beats, with sensitivity and a recenterable practice circle), Lyrics (the ordered list of lyrics sources, lyrics for every track,
 naming the source in the redesign, the lock screen, and glass lyrics in the native look; in the redesign also
 which of the lyrics, their pronunciation and their translation is set largest, and the translation's language), Blocked artists (with the count on the row) and Lock screen widget (its controls and, under Artwork, Animated lock screen, the track's Canvas or the album's Apple Music cover played behind the lock screen's controls, on until switched off, with a Sources page for their order, and a "Needs iOS 26" row below that), which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
