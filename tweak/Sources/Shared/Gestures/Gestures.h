@@ -42,6 +42,10 @@ UIViewController *SGGesturesSettingsPage(void);
 // for a look that answers the gesture (the redesign's haptics). Main thread.
 void SGGestureSetObserver(void (^observer)(SGGestureAction action));
 
+// Performs one of the configured-player actions. Head gestures use the same verified playback
+// controller path as the player's double-tap zones, so both controls always mean the same thing.
+void SGPerformGestureAction(SGGestureAction action);
+
 // Puts the double tap on `host`, the view the player's grid covers, while the switch is on; again on
 // every layout pass of the host, so taps Spotify adds later still wait for it. Main thread.
 void SGGestureAttach(UIView *host);

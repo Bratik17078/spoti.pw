@@ -17,7 +17,7 @@ void SGGestureSetObserver(void (^observer)(SGGestureAction action)) {
 
 #pragma mark - what a cell does
 
-static void perform(SGGestureAction action) {
+void SGPerformGestureAction(SGGestureAction action) {
     SPTNowPlayingPlaybackControllerImplementation *player = sg_player;
     if (!player) return;
     if (action != SGGestureNothing && sg_observer) sg_observer(action);
@@ -71,7 +71,7 @@ static void perform(SGGestureAction action) {
     NSInteger cell = SGGestureCellAt(point, visible.size);
     NSArray<NSNumber *> *zones = SGGestureZones();
     if (cell < 0 || cell >= (NSInteger)zones.count) return;
-    perform((SGGestureAction)zones[(NSUInteger)cell].integerValue);
+    SGPerformGestureAction((SGGestureAction)zones[(NSUInteger)cell].integerValue);
 }
 
 @end

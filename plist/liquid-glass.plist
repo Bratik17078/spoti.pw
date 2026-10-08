@@ -8,5 +8,7 @@
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
 	<true/>
+	<key>NSMotionUsageDescription</key>
+	<string>spoti.pw uses your compatible AirPods’ head motion to run the playback gestures you choose.</string>
 </dict>
 </plist>
