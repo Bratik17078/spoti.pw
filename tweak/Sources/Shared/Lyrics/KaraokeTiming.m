@@ -30,7 +30,13 @@ NSString *SGKaraokeLineText(SGKaraokeLine *line) {
 }
 
 NSInteger SGKaraokeSungEnd(SGKaraokeLine *line) {
-    return line.backing ? MAX(line.end, line.backing.end) : line.end;
+    NSInteger end = line.end;
+    // Some providers end the container before its final syllable. Keep that syllable visible,
+    // including a pronunciation or backing voice that continues beyond the lead.
+    for (SGKaraokeWord *word in line.words) end = MAX(end, word.end);
+    if (line.pronunciation) end = MAX(end, SGKaraokeSungEnd(line.pronunciation));
+    if (line.backing) end = MAX(end, SGKaraokeSungEnd(line.backing));
+    return end;
 }
 
 NSInteger SGKaraokeLeadLine(NSArray<SGKaraokeLine *> *lines, NSInteger ms) {

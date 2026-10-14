@@ -4,6 +4,9 @@
 // is a mock the harness drives: SGRHarnessSetTrack reports a track change to every observer.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
+#if __has_include("Shared/Lyrics/KaraokeMath.h")
+#import "Shared/Lyrics/KaraokeMath.h"
+#endif
 #import "Headers/SPTPlayer.h"
 #import "Shared/Player/PlayerState.h"
 
@@ -112,3 +115,11 @@ void SGKaraokeSeek(NSInteger ms) {
     sg_started = CACurrentMediaTime();
 }
 void SGRHarnessPlayFrom(NSInteger ms) { SGKaraokeSeek(ms); }
+
+#if __has_include("Shared/Lyrics/KaraokeMath.h")
+double SGKaraokePresentationTime(CFTimeInterval shown, BOOL *running, double *rate) {
+    if (running) *running = sg_started != 0;
+    if (rate) *rate = 1;
+    return SGKaraokePresentationMs(SGKaraokePositionMs(), sg_started != 0, 1, CACurrentMediaTime(), shown, 0);
+}
+#endif

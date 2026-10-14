@@ -82,7 +82,10 @@ Shared:
     Lyrics/       the lyrics engine for the redesign's Apple Music style lyrics and the lock screen: lines read from
                   color-lyrics and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line
                   times (KaraokeTiming.m), which line to name where two voices sing at once (the one that came in first,
-                  for the lock screen and the Live Activity), and the Lyrics page's parts
+                  for the lock screen and the Live Activity), and the Lyrics page's parts. The redesign's
+                  presentation clock projects Spotify's position to the display frame at the playback speed,
+                  subtracting the audio session's Bluetooth output latency (refreshed when the route changes);
+                  raw positions and seeking keep Spotify's own time
     LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in — the
                   next going ahead while the last is out, the whole walk answered within a moment — and merged
                   into the best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
@@ -179,7 +182,9 @@ Redesigned:
                   animated Previous and Next glyphs; its more button is handed to
                   Shared/Player's Speed and pitch, which draws in the menu it opens
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
-                  which the player shows in itself too, Player/PlayerLyrics.x): lines sung over each other lit together,
+                  which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
+                  start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill
+                  and glow); lines sung over each other lit together,
                   the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
                   that breathe and fill over its length on a Core Animation timeline laid against the song's clock; and
                   a line's pronunciation (under the words it spells) and translation, switched on from a glass button in

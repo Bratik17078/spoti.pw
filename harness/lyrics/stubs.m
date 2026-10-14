@@ -3,6 +3,9 @@
 // line's -at at -rate, and holds at -pauseAt for -holdFor seconds before it runs on.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
+#if __has_include("Shared/Lyrics/KaraokeMath.h")
+#import "Shared/Lyrics/KaraokeMath.h"
+#endif
 
 UIColor *SGRAccentColor(void) { return nil; }
 
@@ -69,3 +72,14 @@ NSInteger SGKaraokePositionMs(void) {
 }
 
 void SGKaraokeSeek(NSInteger ms) { SGHarnessStartClock(ms, sg_rate, -1, 0); }
+
+#if __has_include("Shared/Lyrics/KaraokeMath.h")
+double SGKaraokePresentationTime(CFTimeInterval shown, BOOL *running, double *rate) {
+    NSInteger position = SGKaraokePositionMs();
+    BOOL playing = position >= 0 && sg_rate > 0 && !sg_heldAt;
+    if (running) *running = playing;
+    if (rate) *rate = sg_rate;
+    double latency = [NSUserDefaults.standardUserDefaults doubleForKey:@"latencyMs"] / 1000;
+    return SGKaraokePresentationMs(position, playing, sg_rate, CACurrentMediaTime(), shown, latency);
+}
+#endif

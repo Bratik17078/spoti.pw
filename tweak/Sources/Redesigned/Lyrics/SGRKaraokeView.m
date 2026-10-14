@@ -14,10 +14,12 @@
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/Player/PlayerEvents.h"
 #import "Shared/Haptics/Haptics.h"
+#import "Shared/Lyrics/KaraokeMath.h"
 #import "Redesigned/Kit/SGRTokens.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
+static const CGFloat kWordScale = 0.035, kWordGlow = 0.55;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
 static const CGFloat kBlurPerLine = 1.4, kMaxBlur = 6;
@@ -35,11 +37,9 @@ static const CGFloat kCreditMaxHeight = 54;
 static const CGFloat kExtrasSide = 44, kExtrasBottom = 12, kExtrasGlyph = 17;
 static const NSTimeInterval kRestyleFade = 0.3;   // the lines crossfading to a new style
 static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
-static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
 // A line lit whole: how long its words take to come up to full white, and to float up together.
 static const NSTimeInterval kWholeFade = 0.35;
 static const double kWholeRiseMs = 900;
-static const double kClockSnapMs = 250, kClockPull = 0.08;
 // Lines get views this far outside the visible part, in screen heights: half a screen above it
 // and below, and a quarter more before a view is let go. Every view held is one more for the window
 // to take in and let go when the lyrics come up; a line comes into view about once in three seconds,
@@ -64,8 +64,6 @@ static const double kBreakWait = 0.25, kBreakIn = 0.4, kBreakFadeIn = 0.16, kBre
 static const double kBreakOut = 0.35, kBreakSwell = 1.2, kBreakSwellShare = 0.35, kBreakCollapse = 0.5;
 // The dots' clock is set again only once it is this far from the song's, or the song stops or starts.
 static const double kBreakSlack = 0.03;
-// A position that has not moved for this long is a paused player, not two frames between readings.
-static const CFTimeInterval kStillFor = 0.1;
 
 @interface CAFilter : NSObject
 + (instancetype)filterWithType:(NSString *)type;
@@ -127,13 +125,14 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 @property (nonatomic) BOOL whole;
 @property (nonatomic) double riseStart, riseEnd;
 - (void)fillTo:(CGFloat)cursor;
+- (void)fillProgress:(CGFloat)progress;
 - (void)floatAt:(double)ms;
 - (void)settle;
 @end
 
 @implementation SGRKaraokeWordView {
     CAGradientLayer *_fill;
-    CGFloat _filled, _lift;
+    CGFloat _filled, _lift, _edge, _glow;
     BOOL _rightToLeft;
 }
 
@@ -147,51 +146,81 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     _rightToLeft = rightToLeft;
     [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:kDimAlpha], self.bounds, rightToLeft)];
     _lit = wordLabel(word.text, font, UIColor.whiteColor, self.bounds, rightToLeft);
+    _lit.clipsToBounds = NO;
+    _lit.layer.shadowColor = UIColor.whiteColor.CGColor;
+    _lit.layer.shadowOffset = CGSizeZero;
+    _lit.layer.shadowRadius = 6;
     // Hidden until the line is sung: a masked layer is drawn offscreen every frame even when the
     // mask leaves nothing of it, and a song has hundreds of words waiting their turn.
     _lit.hidden = YES;
     [self addSubview:_lit];
 
-    CGFloat width = self.bounds.size.width + kFillEdge;
+    // A fixed 22pt feather swallowed narrow syllables. Keep the edge inside each word's scale.
+    _edge = MIN(kFillEdge, MAX(2, self.bounds.size.width * 0.24));
+    CGFloat width = self.bounds.size.width + _edge;
     _fill = [CAGradientLayer layer];
     _fill.colors = @[(id)UIColor.whiteColor.CGColor, (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
-    _fill.locations = @[@0, @((width - kFillEdge) / width), @1];
+    _fill.locations = @[@0, @((width - _edge) / width), @1];
     _fill.startPoint = CGPointMake(rightToLeft ? 1 : 0, 0.5);
     _fill.endPoint = CGPointMake(rightToLeft ? 0 : 1, 0.5);
+    _fill.frame = CGRectMake(0, -self.bounds.size.height / 2, width, self.bounds.size.height * 2);
     _lit.layer.mask = _fill;
     _filled = NAN;
     [self fillTo:-CGFLOAT_MAX];
     return self;
 }
 
-// The cursor is in line units and the feathered edge is centred on it, so the edge runs on through
-// the space into the next word instead of starting over at each one. Right to left, the mask is the
-// same one turned around: white from the word's right edge, the feather `local` in from it.
+// The feather is centred on the word's fill boundary. Right to left, the mask is turned around:
+// white from the word's right edge, the feather `local` in from it.
 - (void)fillTo:(CGFloat)cursor {
-    CGFloat width = self.bounds.size.width, height = self.bounds.size.height;
-    CGFloat local = MAX(-kFillEdge / 2, MIN(width + kFillEdge / 2, cursor - _offset));
+    CGFloat width = self.bounds.size.width;
+    CGFloat local = MAX(-_edge / 2, MIN(width + _edge / 2, cursor - _offset));
     if (local == _filled) return;
     _filled = local;
-    CGFloat left = _rightToLeft ? width - local - kFillEdge / 2 : local - kFillEdge / 2 - width;
+    CGFloat left = _rightToLeft ? width - local - _edge / 2 : local - _edge / 2 - width;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    _fill.frame = CGRectMake(left, -height / 2, width + kFillEdge, height * 2);
+    // Finished words no longer need an offscreen mask pass, and a backward seek restores it.
+    _lit.layer.mask = local >= width + _edge / 2 ? nil : _fill;
+    _fill.transform = CATransform3DMakeTranslation(left, 0, 0);
     [CATransaction commit];
 }
 
-// Rises like a critically damped spring let go as the word starts: no jolt, a long soft landing.
-// x = 5 at the end of the word is 96 % of the way up.
+- (void)fillProgress:(CGFloat)progress {
+    [self fillTo:_offset - _edge / 2 + progress * (self.bounds.size.width + _edge)];
+}
+
+// Word emphasis follows the same song clock as the fill: no independent animation can keep running
+// through a pause or lag after seeking. Long held syllables sustain the glow; short ones peak softly.
 - (void)floatAt:(double)ms {
-    double x = MAX(0, ms - _riseStart + kFloatLeadMs) / MAX(_riseEnd - _riseStart, kFloatMinMs) * 5;
-    CGFloat lift = kLift * (1 - (1 + x) * exp(-x));
-    if (lift == _lift) return;
-    _lift = lift;
-    self.transform = CGAffineTransformMakeTranslation(0, -lift);
+    double duration = MAX(1, _riseEnd - _riseStart);
+    double attack = MIN(120, duration * 0.35), release = MIN(180, duration * 0.4);
+    double envelope = MAX(0, MIN(1, MIN((ms - _riseStart) / attack, (_riseEnd - ms) / release)));
+    CGFloat emphasis = envelope * envelope * (3 - 2 * envelope);
+    BOOL still = SGRReduceMotion();
+    CGFloat lift = still ? 0 : emphasis;
+    if (lift != _lift) {
+        _lift = lift;
+        CGFloat scale = 1 + lift * kWordScale;
+        self.transform = CGAffineTransformConcat(CGAffineTransformMakeScale(scale, scale),
+                                                 CGAffineTransformMakeTranslation(0, -lift * kLift));
+    }
+    // Only a syllable currently being sung casts a glow; completed words keep their white fill.
+    CGFloat glow = emphasis * kWordGlow;
+    if (glow != _glow) {
+        _glow = glow;
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        _lit.layer.shadowOpacity = (float)glow;
+        [CATransaction commit];
+    }
 }
 
 - (void)settle {
     _lift = 0;
+    _glow = 0;
     self.transform = CGAffineTransformIdentity;
+    _lit.layer.shadowOpacity = 0;
 }
 
 @end
@@ -544,10 +573,6 @@ static NSArray<NSNumber *> *topsOf(NSArray<SGKaraokeLine *> *lines, CGFloat widt
 
 #pragma mark - a sweep
 
-typedef struct {
-    double ms, x, slope;
-} SGSweepKnot;
-
 // One run of words lit by one sweep: a line's own, or its pronunciation's, each timed by its own words.
 // A whole one lights every word of the run at once from `start`, for a run whose words are not timed.
 @interface SGRKaraokeSweep : NSObject
@@ -557,8 +582,6 @@ typedef struct {
 @end
 
 @implementation SGRKaraokeSweep {
-    SGSweepKnot *_knots;
-    NSUInteger _knotCount;
     BOOL _whole;
 }
 
@@ -575,64 +598,15 @@ typedef struct {
         }
         return self;
     }
-    [self buildSweep];
     return self;
 }
 
-- (void)dealloc {
-    free(_knots);
-}
-
-static double secant(SGSweepKnot *knots, NSUInteger i) {
-    return (knots[i + 1].x - knots[i].x) / (knots[i + 1].ms - knots[i].ms);
-}
-
-// The fill cursor reaches each word's left edge as the word starts and clears the last word as it
-// ends, on a monotone cubic through those points, so the pace changes between words without a kink.
-- (void)buildSweep {
-    _knots = calloc(_words.count + 1, sizeof(SGSweepKnot));
-    if (!_words.count) return;
-    for (NSUInteger i = 0; i <= _words.count; i++) {
-        SGRKaraokeWordView *word = _words[MIN(i, _words.count - 1)];
-        double ms = i < _words.count ? word.word.start : word.word.end;
-        double x = i == 0 ? -kFillEdge / 2 : i < _words.count ? word.offset : word.offset + word.bounds.size.width + kFillEdge / 2;
-        if (_knotCount && ms <= _knots[_knotCount - 1].ms) {
-            _knots[_knotCount - 1].x = x;
-            continue;
-        }
-        _knots[_knotCount++] = (SGSweepKnot){ms, x, 0};
-    }
-    // Fritsch-Carlson slopes: capped so the cursor never runs backwards or overshoots a word.
-    for (NSUInteger k = 0; k < _knotCount; k++) {
-        BOOL first = k == 0, last = k + 1 == _knotCount;
-        if (first && last) break;
-        if (first || last) {
-            _knots[k].slope = secant(_knots, first ? 0 : k - 1);
-            continue;
-        }
-        double before = secant(_knots, k - 1), after = secant(_knots, k);
-        double h0 = _knots[k].ms - _knots[k - 1].ms, h1 = _knots[k + 1].ms - _knots[k].ms;
-        _knots[k].slope = MIN(MIN(2 * before, 2 * after), (before * h1 + after * h0) / (h0 + h1));
-    }
-}
-
-- (CGFloat)cursorAt:(double)ms {
-    if (!_knotCount) return -CGFLOAT_MAX;
-    if (ms <= _knots[0].ms) return _knots[0].x;
-    if (_knotCount == 1 || ms >= _knots[_knotCount - 1].ms) return _knots[_knotCount - 1].x;
-    NSUInteger k = 0;
-    while (ms >= _knots[k + 1].ms) k++;
-    SGSweepKnot a = _knots[k], b = _knots[k + 1];
-    double h = b.ms - a.ms, u = (ms - a.ms) / h, u2 = u * u, u3 = u2 * u;
-    return (2 * u3 - 3 * u2 + 1) * a.x + (u3 - 2 * u2 + u) * h * a.slope
-         + (3 * u2 - 2 * u3) * b.x + (u3 - u2) * h * b.slope;
-}
-
 - (void)showTime:(double)ms {
-    // A whole run is only ever shown while its line is sung, so it is lit throughout.
-    CGFloat cursor = _whole ? CGFLOAT_MAX : [self cursorAt:ms];
+    // Each syllable owns both boundaries. Gaps hold the previous fill; overlapping syllables and
+    // identical starts advance independently instead of collapsing into one line-wide cursor jump.
     for (SGRKaraokeWordView *word in _words) {
-        [word fillTo:cursor];
+        CGFloat progress = _whole ? 1 : SGKaraokeWordProgress(ms, word.word.start, word.word.end);
+        [word fillProgress:progress];
         [word floatAt:ms];
     }
 }
@@ -903,7 +877,7 @@ static const NSUInteger kLinesPerFrame = 4;
 @property (nonatomic) BOOL rightToLeft;   // filling from the right, the way the line after it reads
 - (instancetype)initWithFont:(UIFont *)font;
 - (void)playFrom:(NSInteger)start to:(NSInteger)end;
-- (void)showTime:(double)ms running:(BOOL)running at:(CFTimeInterval)shown;
+- (void)showTime:(double)ms running:(BOOL)running rate:(double)rate at:(CFTimeInterval)shown;
 @end
 
 // Local time on the dots' clock is this far into the break plus this, so no animation begins at 0,
@@ -1032,18 +1006,19 @@ static double smoothstep(double p) {
     }
 }
 
-- (void)showTime:(double)ms running:(BOOL)running at:(CFTimeInterval)shown {
+- (void)showTime:(double)ms running:(BOOL)running rate:(double)rate at:(CFTimeInterval)shown {
     double local = kBreakEpoch + (ms - _start) / 1000.0;
     CFTimeInterval parent = [self.layer convertTime:shown fromLayer:nil];
     BOOL stopped = _clock.speed == 0;
     double now = stopped ? _clock.timeOffset : (parent - _clock.beginTime) * _clock.speed + _clock.timeOffset;
-    if (stopped != running && fabs(now - local) < kBreakSlack) return;
+    double speed = running ? rate : 0;
+    if (fabs(_clock.speed - speed) < 0.000001 && fabs(now - local) < kBreakSlack) return;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     if (running) {
-        _clock.speed = 1;
+        _clock.speed = rate;
         _clock.timeOffset = 0;
-        _clock.beginTime = parent - local;
+        _clock.beginTime = parent - local / rate;
     } else {
         _clock.speed = 0;
         _clock.beginTime = 0;
@@ -1096,7 +1071,8 @@ typedef struct {
     NSUInteger _arrangement;   // counts the changes to the three above, for the views in sight
     SGRKaraokeBreakView *_dots;
     NSInteger _dotsLine;   // the line the break the dots are timed for comes before
-    CFTimeInterval _stillSince;   // when the position stopped moving, 0 while it moves
+    BOOL _clockRunning;
+    double _clockRate;
     SGRKaraokeStyle *_style;   // how the lines were laid out
     BOOL _hasSpoken, _hasTranslation;   // whether the song has any line with either
     UIButton *_extras;
@@ -1106,9 +1082,6 @@ typedef struct {
     UITextView *_credit;
     CGFloat _fontSize, _margin, _lineGap, _blurPerLine, _maxBlur;
     BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
-    double _clock;
-    NSInteger _reported;
-    CFTimeInterval _clockTime;
     BOOL _sweepsEstimates;   // the Lyrics page's "Simulate word-by-word timing", read once like the credit
     BOOL _plain;             // the song has no timing at all: every line lit, nothing follows the clock
     NSDictionary<NSNumber *, NSArray<SGLyricsMeaning *> *> *_meanings;   // Genius's, by line
@@ -1688,22 +1661,10 @@ typedef struct {
     }
 }
 
-// The player's position run on by the frame times the display will show and eased toward each new
-// reading, so the sweep follows neither the callback's jitter nor the small jumps of the core's
-// corrections. A seek or a new track is too far off to ease and is taken at once.
+// The player's clock already runs continuously between state reports. Read its audible position
+// for this display frame directly: smoothing a second clock hid small seeks and assumed 1x speed.
 - (double)clockMs {
-    NSInteger raw = SGKaraokePositionMs();
-    CFTimeInterval shown = _link.targetTimestamp;
-    BOOL running = raw != _reported;   // a paused player reports the same position every frame
-    if (running) _stillSince = 0;
-    else if (!_stillSince) _stillSince = shown;
-    double reported = raw + (running ? (shown - CACurrentMediaTime()) * 1000 : 0);
-    double predicted = _clock + (running ? (shown - _clockTime) * 1000 : 0);
-    double error = reported - predicted;
-    _clock = raw < 0 || fabs(error) > kClockSnapMs ? reported : predicted + error * kClockPull;
-    _reported = raw;
-    _clockTime = shown;
-    return _clock;
+    return SGKaraokePresentationTime(_link.targetTimestamp, &_clockRunning, &_clockRate);
 }
 
 - (void)tick {
@@ -1717,10 +1678,10 @@ typedef struct {
         [self dropLineViews];
         [self offerExtras];
     }
-    // Plain text is shown while Spotify is asked whether it has the song timed; its answer replaces it.
-    NSArray<SGKaraokeLine *> *kept = _plain && _lines && track ? SGKaraokeLinesForTrack(track) : nil;
+    // Sources can improve line timing to word timing after the first answer, as well as plain text.
+    NSArray<SGKaraokeLine *> *kept = _lines && track ? SGKaraokeLinesForTrack(track) : nil;
     if (kept && kept != _lines) {
-        SGLog(@"karaoke: timed lines of %@ came in over the plain text", track);
+        SGLog(@"karaoke: updated timing for %@ came in", track);
         _lines = nil;
         _builtWidth = 0;
         [self creditTo:nil];
@@ -1767,7 +1728,7 @@ typedef struct {
         [self showLinesInSight];   // the page may be scrolling by hand, or springing back
     }
     for (NSUInteger i = 0; i < _sungCount; i++) [_shown[@(_sung[i])] showTime:now];
-    if (_dots.superview) [_dots showTime:now running:!_stillSince || _link.targetTimestamp - _stillSince < kStillFor at:_link.targetTimestamp];
+    if (_dots.superview) [_dots showTime:now running:_clockRunning rate:_clockRate at:_link.targetTimestamp];
 }
 
 // What is sung at `now`: each line from its start until it is sung out, so two voices over each

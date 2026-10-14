@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+  <body><div>
+    <p begin="1s" end="4s">
+      <span begin="1s" end="1.2s">Gap</span> <span begin="2s" end="2.6s">Twin</span>
+      <span begin="2s" end="2.8s">Voice</span> <span begin="3s" end="5.3s">Sustain</span>
+      <span begin="3.2s" end="3.3s">Quick</span> <span begin="3.4s" end="3.408s">Blink</span>
+    </p>
+    <p begin="4.4s" end="6s"><span begin="4.4s" end="6s">Overlap</span></p>
+    <p begin="14s" end="16s"><span begin="14s" end="15s">After</span> <span begin="15s" end="16s">silence</span></p>
+  </div></body>
+</tt>

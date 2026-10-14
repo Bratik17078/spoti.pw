@@ -41,6 +41,7 @@ static SGKaraokeLine *lineFrom(id value, BOOL wordTimed) {
         [words addObject:word];
         previousContinues = [syllable[@"IsPartOfWord"] boolValue];
     }
+    BOOL hasSyllables = words.count > 0;
     if (!words.count) {
         NSString *text = string(entry[@"Text"]);
         if (!text.length) return nil;
@@ -52,10 +53,19 @@ static SGKaraokeLine *lineFrom(id value, BOOL wordTimed) {
     line.words = words;
     line.start = milliseconds(entry[@"StartTime"]);
     line.end = MAX(line.start, milliseconds(entry[@"EndTime"]));
-    if (!line.start && words.firstObject.start) line.start = words.firstObject.start;
-    if (!line.end && words.lastObject.end) line.end = words.lastObject.end;
-    if (line.end < line.start) line.end = line.start;
-    line.timing = wordTimed ? SGKaraokeTimingWords : line.start || line.end ? SGKaraokeTimingLine : SGKaraokeTimingNone;
+    if (hasSyllables) {
+        // Container times sometimes exclude the first or last syllable. The word timing wins.
+        if (!entry[@"StartTime"]) line.start = words.firstObject.start;
+        for (SGKaraokeWord *word in words) {
+            line.start = MIN(line.start, word.start);
+            line.end = MAX(line.end, word.end);
+        }
+    } else {
+        words.firstObject.start = line.start;
+        words.firstObject.end = line.end;
+    }
+    line.timing = wordTimed && hasSyllables ? SGKaraokeTimingWords
+                : line.start || line.end ? SGKaraokeTimingLine : SGKaraokeTimingNone;
     return line;
 }
 
@@ -112,6 +122,10 @@ static SGLyricsResult *resultFrom(id root) {
         [lines addObject:line];
     }
     if (!lines.count) return nil;
+    // The renderer and lock screen walk lines by start time; keep simultaneous voices stable.
+    [lines sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(SGKaraokeLine *a, SGKaraokeLine *b) {
+        return a.start < b.start ? NSOrderedAscending : a.start > b.start ? NSOrderedDescending : NSOrderedSame;
+    }];
     if (!synced) {
         for (SGKaraokeLine *line in lines) line.timing = SGKaraokeTimingNone;
     }

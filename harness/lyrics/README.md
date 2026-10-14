@@ -13,6 +13,8 @@ by the real estimate in `KaraokeTiming.m`.
 `stubs.m` stands in for the player and the store: the position runs from `-at` at `-rate` and holds at
 `-pauseAt` (for `-holdFor` seconds, then runs on). `main.m` lists every launch argument; the lyrics'
 own settings are taken by their keys, e.g. `-spotifyglass.redesign.lyricsPronunciation 1`.
+`-latencyMs 200` simulates a Bluetooth output delay in the presentation clock. Compare at `-rate 0.5`
+and `-rate 2`, pause mid-word, then resume: the fill and word emphasis should stop together.
 
 The fixtures are real TTML and LRC with every word swapped for filler of the same script and length
 (`fixtures/anonymise.py`), so each keeps its song's timing and structure without its lyrics:
@@ -29,6 +31,9 @@ The fixtures are real TTML and LRC with every word swapped for filler of the sam
   (these four are written by `fixtures/linetimed.py` from `plain`'s timing)
 - `rtl` (built in) right to left lines among left to right ones, a second voice, a break before the
   last line; `rtlx` the same with translations and a romanization
+- `boundaries` synthetic word timing: a gap, identical starts, overlapping syllables, an 8ms word,
+  and a sustained word ending after its container and after a later word. At 4.5s both lines should
+  remain active, and the first line's sustained word should still be filling until 5.3s.
 
 Lines timed by the line light up whole; `-spotifyglass.lyricsSimulateWords 1` sweeps them on the
 estimate instead, as the Lyrics page's switch does. Untimed lyrics show every line lit, whatever `-at`.
@@ -48,3 +53,12 @@ A screen recording catches the motion: `simctl io <udid> recordVideo -f run.mp4`
 
 What it does not cover: Spotify's pages around the view (the player's stage is only its size, `-player 1`),
 the lyrics arriving late or changing track, and the device's frame pacing.
+
+Portable timing regressions use the renderer's actual `KaraokeMath.h`, with no Apple SDK:
+
+    clang -std=c11 -Wall -Wextra -Werror timing.c -lm -o /tmp/lyrics-timing
+    /tmp/lyrics-timing
+
+On Windows, compile and link separately (omit `-lm`) with Clang and the Windows SDK. These checks
+cover gaps, overlaps, duplicate starts, short/zero-duration words, Bluetooth delay, playback speed,
+pauses, small seeks and stale frame timestamps; UIKit rendering still needs the simulator or phone.

@@ -69,7 +69,7 @@ typedef NS_ENUM(NSUInteger, SGKaraokeAlign) {
 
 // The line as one string, a space between the words that are not joined.
 NSString *SGKaraokeLineText(SGKaraokeLine *line);
-// When the singing of a line is over: its own end, or its backing's when that runs on past it.
+// When the singing is over: the container, words, pronunciation and backing's latest end.
 NSInteger SGKaraokeSungEnd(SGKaraokeLine *line);
 // The one line a place with room for one names as the one being sung at `ms`. Two voices can sing
 // over each other, and a line another voice comes in over keeps its place until it is sung out, so
@@ -106,6 +106,10 @@ void SGKaraokeAskSpotifyForTiming(NSString *trackID);
 NSString *SGKaraokeSpotifyAuthorization(void);
 NSString *SGKaraokePlayingTrack(void);   // the base62 id, nil before the player reported
 NSInteger SGKaraokePositionMs(void);     // negative when unknown
+// The audible position at a display frame's host time (CACurrentMediaTime's clock), accounting
+// for Bluetooth output latency and playback speed. Main thread; raw position and seek stay unchanged.
+// `running` comes from the player's state, not whether two rounded positions happened to differ.
+double SGKaraokePresentationTime(CFTimeInterval shown, BOOL *running, double *rate);
 void SGKaraokeSeek(NSInteger ms);
 id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the app asked it for its state
 // A track the player has reported, by its base62 id; nil for one it has not played this session.

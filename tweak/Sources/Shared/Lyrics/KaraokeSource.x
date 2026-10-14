@@ -9,6 +9,9 @@
 #import "Shared/LockScreenLyrics/LockScreenLyrics.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Headers/SPTPlayer.h"
+#import "Shared/Player/SpeedPitch.h"
+#import "KaraokeMath.h"
+#import <AVFoundation/AVFoundation.h>
 
 static const NSUInteger kKeptTracks = 40;
 static const NSUInteger kSeenTracks = 200;
@@ -75,6 +78,8 @@ static SPTPlayerTrack *upNextIn(SPTPlayerState *state) {
 // Main queue only. A full cache is emptied but for the track playing, the one up next and those still
 // being asked for; what goes can be asked for again.
 static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines) {
+    // A response already in flight may still carry the fallback after a finer source landed.
+    if (SGKaraokeLinesTiming(lines) > SGKaraokeLinesTiming(sg_lyrics[track])) return;
     if (sg_lyrics.count >= kKeptTracks && !sg_lyrics[track]) {
         NSMutableSet<NSString *> *spared = [sg_asking mutableCopy];
         SPTPlayerState *state = playerState();
@@ -244,6 +249,39 @@ NSInteger SGKaraokePositionMs(void) {
     return (NSInteger)((state.isPaused ? state.positionAsOfTimestamp : state.position) * 1000);
 }
 
+// Read only: Spotify owns the audio session. Recheck periodically as well as on route changes,
+// since the reported latency can settle after AirPods connect. Never put session queries in the
+// renderer's per-word loop, or apply this phone's route delay to wired/speaker playback.
+static double sg_outputLatency;
+static CFTimeInterval sg_latencyRead;
+
+static void readOutputLatency(void) {
+    AVAudioSession *session = AVAudioSession.sharedInstance;
+    BOOL bluetooth = NO;
+    for (AVAudioSessionPortDescription *output in session.currentRoute.outputs) {
+        bluetooth |= [output.portType isEqualToString:AVAudioSessionPortBluetoothA2DP]
+                  || [output.portType isEqualToString:AVAudioSessionPortBluetoothHFP]
+                  || [output.portType isEqualToString:AVAudioSessionPortBluetoothLE];
+    }
+    double latency = bluetooth ? session.outputLatency : 0;
+    sg_outputLatency = isfinite(latency) && latency > 0 ? latency : 0;
+    sg_latencyRead = CACurrentMediaTime();
+}
+
+double SGKaraokePresentationTime(CFTimeInterval shown, BOOL *running, double *rate) {
+    SPTPlayerState *state = playerState();
+    BOOL playing = state && state.isPlaying && !state.isPaused && !state.isLoading;
+    double speed = SGPlayerSpeed();
+    if (!isfinite(speed) || speed <= 0) speed = 1;
+    if (running) *running = playing;
+    if (rate) *rate = speed;
+    if (!state) return -1;
+    CFTimeInterval now = CACurrentMediaTime();
+    if (!sg_latencyRead || now - sg_latencyRead > 1) readOutputLatency();
+    double position = (playing ? state.position : state.positionAsOfTimestamp) * 1000;
+    return SGKaraokePresentationMs(position, playing, speed, now, shown, sg_outputLatency);
+}
+
 void SGKaraokeSeek(NSInteger ms) {
     id player = sg_player;
     if (![player respondsToSelector:@selector(seekTo:)]) return;
@@ -354,6 +392,10 @@ static void prefetch(SPTPlayerTrack *track, NSString *trackID, SPTPlayerState *s
     sg_asking = [NSMutableSet set];
     sg_losses = [NSMutableDictionary dictionary];
     sg_ownSources = SGLyricsEnabled();
+    [NSNotificationCenter.defaultCenter addObserverForName:AVAudioSessionRouteChangeNotification object:nil
+        queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { sg_latencyRead = 0; }];
+    [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidBecomeActiveNotification object:nil
+        queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { sg_latencyRead = 0; }];
     %init;
     SGLog(@"karaoke: on");
     SGRequireClasses(@[
