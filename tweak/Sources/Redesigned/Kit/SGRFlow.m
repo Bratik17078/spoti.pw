@@ -14,11 +14,11 @@ typedef struct {
 } SGRDisc;
 
 static const SGRDisc kDisc[kDiscs] = {
-    {0.22, 0.20, 0.80, 0.26, 0.10, 29, YES, 13},
-    {0.80, 0.28, 0.75, 0.22, 0.12, 37, NO, 17},
-    {0.20, 0.74, 0.78, 0.24, 0.11, 31, NO, 19},
-    {0.78, 0.84, 0.80, 0.26, 0.09, 41, YES, 11},
-    {0.50, 0.50, 0.75, 0.18, 0.14, 53, YES, 23},
+    {0.22, 0.20, 0.80, 0.26, 0.10, 19, YES, 13},
+    {0.80, 0.28, 0.75, 0.22, 0.12, 29, NO, 17},
+    {0.20, 0.74, 0.78, 0.24, 0.11, 23, NO, 19},
+    {0.78, 0.84, 0.80, 0.26, 0.09, 31, YES, 11},
+    {0.50, 0.50, 0.75, 0.18, 0.14, 37, YES, 23},
 };
 // How far a breath takes a disc's size either way, and how long new colours take to blend in.
 static const CGFloat kBreathSmall = 0.85, kBreathLarge = 1.18;
@@ -53,6 +53,8 @@ static NSArray *discColors(UIColor *color) {
     CALayer *_base;
     CAGradientLayer *_discs[kDiscs];
     CAGradientLayer *_shade;
+    CALayer *_textures[2];
+    UIImage *_texture;
     CGSize _laidOutFor;
     // Seconds of drift so far, and since when it has been running.
     CFTimeInterval _elapsed, _since;
@@ -63,9 +65,16 @@ static NSArray *discColors(UIColor *color) {
 - (instancetype)init {
     if (!(self = [super init])) return nil;
     self.actions = noActions();
+    self.masksToBounds = YES;
     _base = [CALayer layer];
     _base.actions = noActions();
     [self addSublayer:_base];
+    for (int i = 0; i < 2; i++) {
+        CALayer *texture = [CALayer layer];
+        texture.actions = noActions(); texture.contentsGravity = kCAGravityResizeAspectFill;
+        texture.opacity = i ? 0.4 : 0.55;
+        [self addSublayer:texture]; _textures[i] = texture;
+    }
     for (int i = 0; i < kDiscs; i++) {
         CAGradientLayer *disc = [CAGradientLayer layer];
         disc.actions = noActions();
@@ -107,6 +116,11 @@ static NSArray *discColors(UIColor *color) {
     BOOL moving = _moving;
     if (moving) [self stop];
     CGFloat side = MAX(bounds.size.width, bounds.size.height);
+    for (int i = 0; i < 2; i++) {
+        _textures[i].bounds = CGRectMake(0, 0, side * 1.35, side * 1.35);
+        _textures[i].position = CGPointMake(bounds.size.width * (i ? 0.65 : 0.35), bounds.size.height * (i ? 0.62 : 0.38));
+        _textures[i].transform = CATransform3DIdentity;
+    }
     for (int i = 0; i < kDiscs; i++) {
         CGFloat diameter = round(side * kDisc[i].diameter);
         _discs[i].bounds = CGRectMake(0, 0, diameter, diameter);
@@ -148,6 +162,23 @@ static NSArray *discColors(UIColor *color) {
     if (self.bounds.size.width < 1) return;
     _since = CACurrentMediaTime();
     CAFrameRateRange rate = CAFrameRateRangeMake(15, 60, 30);
+    if (_texture) for (int i = 0; i < 2; i++) {
+        // One transform combines rotation and breathing; stopping snapshots that same transform.
+        CFTimeInterval period = i ? 61 : 43;
+        CAKeyframeAnimation *turn = [CAKeyframeAnimation animationWithKeyPath:@"transform"];
+        NSMutableArray *values = [NSMutableArray array];
+        for (int frame = 0; frame <= 48; frame++) {
+            double phase = (double)frame / 48;
+            CGFloat scale = 1.04 + 0.12 * (1 - cos(phase * 2 * M_PI)) / 2;
+            CATransform3D transform = CATransform3DMakeRotation((i ? -1 : 1) * phase * 2 * M_PI, 0, 0, 1);
+            transform = CATransform3DScale(transform, scale, scale, 1);
+            transform = CATransform3DTranslate(transform, sin(phase * 2 * M_PI) * 24, (1 - cos(phase * 2 * M_PI)) * 16, 0);
+            [values addObject:[NSValue valueWithCATransform3D:transform]];
+        }
+        turn.values = values; turn.duration = period; turn.repeatCount = HUGE_VALF;
+        turn.timeOffset = fmod(_elapsed, period); turn.preferredFrameRateRange = rate;
+        [_textures[i] addAnimation:turn forKey:@"flow"];
+    }
     for (int i = 0; i < kDiscs; i++) {
         CAGradientLayer *disc = _discs[i];
         CGPathRef loop = [self newLoopOf:i];
@@ -178,6 +209,11 @@ static NSArray *discColors(UIColor *color) {
 - (void)stop {
     if (_since > 0) _elapsed += CACurrentMediaTime() - _since;
     _since = 0;
+    for (int i = 0; i < 2; i++) {
+        CALayer *shown = _textures[i].presentationLayer;
+        if (shown) _textures[i].transform = shown.transform;
+        [_textures[i] removeAnimationForKey:@"flow"];
+    }
     for (int i = 0; i < kDiscs; i++) {
         CAGradientLayer *disc = _discs[i];
         CALayer *shown = disc.presentationLayer;
@@ -191,6 +227,22 @@ static NSArray *discColors(UIColor *color) {
 }
 
 #pragma mark - colours
+
+- (void)setArtwork:(UIImage *)texture animated:(BOOL)animated {
+    if (!texture || texture == _texture) return;
+    BOOL first = _texture == nil;
+    _texture = texture;
+    [CATransaction begin]; [CATransaction setDisableActions:YES];
+    for (int i = 0; i < 2; i++) {
+        if (animated) {
+            CATransition *fade = [CATransition animation]; fade.type = kCATransitionFade; fade.duration = kRecolor;
+            [_textures[i] addAnimation:fade forKey:@"artwork"];
+        }
+        _textures[i].contents = (__bridge id)texture.CGImage;
+    }
+    [CATransaction commit];
+    if (first && _moving) { [self stop]; [self start]; }
+}
 
 - (void)setColors:(NSArray<UIColor *> *)colors animated:(BOOL)animated {
     if (colors.count < kDiscs) return;

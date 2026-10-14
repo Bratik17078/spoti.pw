@@ -24,6 +24,7 @@ static const CGFloat kFlowSaturationLift = 1.25, kFlowSaturationMax = 0.9, kFlow
 @property (nonatomic, readwrite) UIImage *backdrop;
 @property (nonatomic, readwrite) UIImage *dissolve;
 @property (nonatomic, readwrite) NSArray<UIColor *> *flowColors;
+@property (nonatomic, readwrite) UIImage *flowTexture;
 @end
 
 static dispatch_queue_t paletteQueue(void) {
@@ -165,6 +166,24 @@ static UIImage *finished(CGImageRef blurred, BOOL dim, CGFloat dimBottom, CGFloa
 
 #pragma mark - tint
 
+// Blurred artwork, baked once on the palette queue. Even a white cover is held below the moving
+// field's luminance ceiling; the compositing animation never needs a live blur or a new bitmap.
+static UIImage *flowTextureOf(CGImageRef image) {
+    enum { side = 192 };
+    CGImageRef blurred = newBlurred(image, side, side, 14);
+    if (!blurred) return nil;
+    CGContextRef context = newBitmap(side, side);
+    if (!context) { CGImageRelease(blurred); return nil; }
+    CGContextDrawImage(context, CGRectMake(0, 0, side, side), blurred);
+    CGContextSetRGBFillColor(context, 0, 0, 0, 0.70);
+    CGContextFillRect(context, CGRectMake(0, 0, side, side));
+    CGImageRef result = CGBitmapContextCreateImage(context);
+    UIImage *texture = result ? [UIImage imageWithCGImage:result] : nil;
+    if (result) CGImageRelease(result);
+    CGContextRelease(context); CGImageRelease(blurred);
+    return texture;
+}
+
 // The artwork's dominant colour in linear light: its pixels binned 3 bits a channel, each bin scored by its
 // count weighted towards colourful pixels, so a busy cover gives its main colour instead of the grey an
 // average makes. Near-black and near-white count for little unless they are nearly all there is.
@@ -293,7 +312,10 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
                 if (blurred) palette.backdrop = finished(blurred, YES, request.amoled ? 0.55 : 0.45, kFadeFrom, 1, 1, 0);
                 CGImageRelease(blurred);
             }
-            if (request.flow) palette.flowColors = flowColorsOf(cg, flowCeiling);
+            if (request.flow) {
+                palette.flowColors = flowColorsOf(cg, flowCeiling);
+                palette.flowTexture = flowTextureOf(cg);
+            }
             if (request.dissolve) {
                 CGFloat aspect = (CGFloat)CGImageGetHeight(cg) / CGImageGetWidth(cg);
                 size_t height = (size_t)MIN(kDissolveWidth * 2, MAX(kDissolveWidth / 2, round(kDissolveWidth * aspect)));

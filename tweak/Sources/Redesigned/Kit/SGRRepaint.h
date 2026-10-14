@@ -13,3 +13,5 @@ extern __weak UIView *sgr_playlistRoot;
 extern __weak UIView *sgr_albumRoot;
 // Redesigned/Artist/ArtistField.x, the artist page, kept clear the same way and for the same reason.
 extern __weak UIView *sgr_artistRoot;
+// Home is transparent only while a photo background has been selected.
+extern __weak UIView *sgr_homePhotoRoot;

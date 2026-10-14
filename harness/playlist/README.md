@@ -50,3 +50,11 @@ identifier and in a mock of the Encore object behind it (`currentState`, `progre
 None, waiting, downloading (held at 50%), downloaded, shuffle on, removed with shuffle off, error, each held a
 few seconds and announced with a `[harness] state:` line to take a screenshot on. Nothing in it lays anything
 out, as on the phone.
+
+The harness links the real photo background picker, storage and settings framework. `background-checks`
+checks shared/individual playlist identity, the Liked Songs slot and rejection of stored paths outside the
+background directory. `second` gives the mock page a different stable playlist URI (the same title), so
+the two can be assigned separate photos. Use the pinned ⋯ → Background to open Photos; defaults can be
+set on the launch line with `-spotifyglass.redesign.backgrounds.playlistMode 0` (shared) or `1` (individual).
+Verify picking and cancelling, replacing/removing a photo, relaunch persistence, and switching modes.
+Selecting a very large or rotated photo should retain its orientation and never stall the playlist scroll.

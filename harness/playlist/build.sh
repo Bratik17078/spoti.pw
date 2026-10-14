@@ -21,7 +21,10 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     "$SRC"/Redesigned/Kit/SGRGlass.m "$SRC"/Redesigned/Kit/SGRGlyph.m "$SRC"/Redesigned/Kit/SGRRestyle.m \
     "$SRC"/Redesigned/Kit/SGRActionRow.m "$SRC"/Redesigned/Kit/SGRDownload.m "$SRC"/Redesigned/Kit/SGRHeaderInfo.m \
     "$SRC"/Redesigned/Kit/SGRedesign.m \
-    -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation -framework Symbols \
+    "$SRC"/Redesigned/Kit/SGRBackgrounds.m \
+    "$SRC"/Settings/SGPage.m "$SRC"/Settings/SGPageStyle.m "$SRC"/Settings/SGModPage.m "$SRC"/Settings/SGGlowSwitch.m \
+    "$SRC"/Shared/Haptics/SGFeedback.m \
+    -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation -framework Symbols -framework PhotosUI -framework ImageIO \
     -o "$OUT/PlaylistHarness.app/PlaylistHarness"
 
 cat > "$OUT/PlaylistHarness.app/Info.plist" <<'PLIST'

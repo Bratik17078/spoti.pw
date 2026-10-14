@@ -33,6 +33,8 @@ typedef struct {
 // the dominant colour there, its saturation lifted a little and its luminance held between
 // kFlowLuminanceMin and kFlowLuminanceMax, so white text keeps better than 5.5:1 on any of them.
 @property (nonatomic, readonly) NSArray<UIColor *> *flowColors;
+// A small, pre-blurred and dimmed artwork texture for the moving player; nil unless flow is asked for.
+@property (nonatomic, readonly) UIImage *flowTexture;
 // nil to the completion when the image has no bitmap to read (a symbol, a CIImage).
 + (void)paletteForImage:(UIImage *)image request:(SGRPaletteRequest)request completion:(void (^)(SGRPalette *palette))completion;
 

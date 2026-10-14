@@ -320,6 +320,7 @@ static void showPlaylist(SGRHeaderInfo *info, UIView *block, UIView *root, id mo
               about:plainText(modelString(model, @"playlistDescription"))];
 
     BOOL liked = [modelString(model, @"formatListType") isEqualToString:@"liked-songs"];
+    if (model) SGRPlaylistSetBackgroundInfo(SGRPlaylistPageOf(block), title, liked);
     BOOL own = modelFlag(model, @"isOwnedBySelf", YES) || liked;
     UIView *shuffle = SGRFindByIdentifier(block, @"Components.UI.ShuffleButton", &kShuffleKey);
     UIView *play = SGRFindByIdentifier(root, @"header-play-button", &kPlayKey);

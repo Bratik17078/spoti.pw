@@ -1,7 +1,8 @@
 // A moving field of the artwork's colours, the Music app's animated background behind its player
 // (issue #59): five soft discs of colour, one for each quarter of the artwork and one for the whole of
-// it, each drifting on a slow loop of its own and breathing in size, over the artwork's main colour and
-// under a shade that deepens towards the bottom, where the controls are.
+// it, each drifting on a slow loop of its own and breathing in size, over the artwork's main colour.
+// Two small pre-blurred artwork textures rotate and drift independently behind the discs, giving the
+// player a Spicy-style moving picture rather than just flat colours. A shade deepens towards the controls.
 //
 // All of it is Core Animation: radial gradient layers moved by repeating animations that the render
 // server plays, so the app itself does no work per frame -- no display link, no timer, nothing redrawn
@@ -19,6 +20,8 @@
 // Five colours, as -[SGRPalette flowColors] gives them: top left, top right, bottom left, bottom right,
 // the whole artwork's. Animated, they blend into the new ones where the discs are.
 - (void)setColors:(NSArray<UIColor *> *)colors animated:(BOOL)animated;
+// Spicy-style blurred artwork behind the colour discs, drifting and rotating on separate slow loops.
+- (void)setArtwork:(UIImage *)texture animated:(BOOL)animated;
 // The colour under the discs, darker than the artwork's main one; nil before any colours are set.
 @property (nonatomic, readonly) UIColor *baseColor;
 // Drifting, or held still where it is. Off to begin with.

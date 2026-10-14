@@ -49,6 +49,7 @@ static NSDictionary *noActions(void) {
     self.userInteractionEnabled = NO;
     self.clipsToBounds = NO;
     self.accessibilityElementsHidden = YES;
+    self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     _color = SGRNeutralField();
 
     _solid = [CALayer layer];
@@ -220,6 +221,7 @@ static NSDictionary *noActions(void) {
     _read = YES;
     if (_flows && palette.flowColors) {
         [_flow setColors:palette.flowColors animated:animated && !_flow.hidden];
+        [_flow setArtwork:palette.flowTexture animated:animated && !_flow.hidden];
         _flow.hidden = NO;
         [self updateMotion];
         // Past the moving field's edges (the pull that dismisses the player) the colour under it goes on.

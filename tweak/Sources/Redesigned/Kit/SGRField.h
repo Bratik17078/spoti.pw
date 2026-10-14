@@ -4,7 +4,8 @@
 //
 // Nothing is blurred live and nothing is masked: the view draws a solid colour layer, a black gradient
 // layer (the redesign is AMOLED throughout, fading the colour to black down the page) and at most one
-// bitmap layer rendered off the main thread, so it costs a few composited layers while the page moves. A new colour or bitmap crossfades over
+// still bitmap layer rendered off the main thread. A moving field also composites a small pre-blurred
+// artwork texture twice (SGRFlow.h). A new colour or bitmap crossfades over
 // SGRCrossfade; the same image again is a no-op.
 //
 // Ownership: the screen that installs a field owns it (usually retained by its superview and an

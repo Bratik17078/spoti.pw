@@ -10,3 +10,8 @@ __weak UIView *sgr_playlistRoot = nil;
 // Redesigned/Kit/SGRBridges.x: SGRField.m asks whether the player is opening or closing for its moving field.
 BOOL SGRPlayerIsTransitioning(void) { return NO; }
 void SGRObservePlayerTransition(id owner, void (^began)(id owner), void (^ended)(id owner)) {}
+
+// Shared/Player is not linked into this mock page.
+NSString *SGURIString(id value) {
+    return [value isKindOfClass:NSURL.class] ? [value absoluteString] : [value isKindOfClass:NSString.class] ? value : nil;
+}

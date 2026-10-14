@@ -17,13 +17,62 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Playlist.h"
+#import "Settings/SGPageStyle.h"
+#import "Redesigned/Kit/SGRBackgrounds.h"
 
 NSString *const SGRPlaylistListIdentifier = @"SPTFreeTierPlaylistTableView";
 
 // Above for the bounce at the top of the list, below for the one at the end of it.
 static const UIEdgeInsets kBleed = {600, 0, 600, 0};
 
-static char kFieldKey;
+static char kFieldKey, kBackgroundTitleKey, kBackgroundLikedKey, kBackgroundURIKey;
+
+void SGRPlaylistSetBackgroundInfo(UIView *page, NSString *title, BOOL liked) {
+    if (!page) return;
+    NSString *oldTitle = objc_getAssociatedObject(page, &kBackgroundTitleKey);
+    NSNumber *oldLiked = objc_getAssociatedObject(page, &kBackgroundLikedKey);
+    if ([oldTitle isEqualToString:title] && oldLiked && oldLiked.boolValue == liked) return;
+    objc_setAssociatedObject(page, &kBackgroundTitleKey, title, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    objc_setAssociatedObject(page, &kBackgroundLikedKey, @(liked), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [page setNeedsLayout];
+}
+
+// spt_pageURI is Spotify's SPTPageController protocol, used by Settings/SGPage.m and the artist's
+// identity lookup (ArtistFollow.x). Read it only when the controller implements it; never key on
+// the displayed title, which can change or be shared by two different playlists.
+static NSString *playlistURI(UIView *page) {
+    NSString *held = objc_getAssociatedObject(page, &kBackgroundURIKey);
+    if (held) return held;
+    for (UIResponder *r = page; r; r = r.nextResponder) {
+        if (![r isKindOfClass:UIViewController.class] || ![r respondsToSelector:@selector(spt_pageURI)]) continue;
+        id value = [(id)r performSelector:@selector(spt_pageURI)];
+        NSString *uri = SGURIString(value);
+        if (![uri hasPrefix:@"spotify:"] || ![uri containsString:@":playlist:"]) continue;
+        NSString *identifier = [uri componentsSeparatedByString:@":"].lastObject;
+        if (identifier.length != 22 || [identifier rangeOfCharacterFromSet:NSCharacterSet.alphanumericCharacterSet.invertedSet].location != NSNotFound) continue;
+        held = [@"spotify:playlist:" stringByAppendingString:identifier];
+        objc_setAssociatedObject(page, &kBackgroundURIKey, held, OBJC_ASSOCIATION_COPY_NONATOMIC);
+        return held;
+    }
+    return nil;
+}
+static NSString *backgroundScope(UIView *page) {
+    BOOL liked = [objc_getAssociatedObject(page, &kBackgroundLikedKey) boolValue];
+    return SGRBackgroundScopeForPlaylist(liked ? nil : playlistURI(page), liked);
+}
+void SGRPlaylistChooseBackground(UIView *page) {
+    BOOL liked = [objc_getAssociatedObject(page, &kBackgroundLikedKey) boolValue];
+    if (!liked && SGInt(SGRKeyPlaylistBackgroundMode, 0) == 1 && !playlistURI(page)) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Playlist is still loading"
+            message:@"Open this menu again once the playlist has loaded to choose its own background." preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+        [SGTopController() presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    NSString *name = liked ? @"Liked Songs" : SGInt(SGRKeyPlaylistBackgroundMode, 0) == 0 ? @"All playlists"
+                    : objc_getAssociatedObject(page, &kBackgroundTitleKey) ?: @"Playlist";
+    SGRChooseBackground(backgroundScope(page), name);
+}
 
 #pragma mark - the page's field
 
@@ -64,6 +113,9 @@ static SGRArtworkField *fieldIn(UIView *page) {
     if (field.superview != page) [page insertSubview:field atIndex:0];
     else if (page.subviews.firstObject != field) [page sendSubviewToBack:field];
     if (!CGRectEqualToRect(field.frame, page.bounds)) field.frame = page.bounds;
+    NSString *scope = backgroundScope(page);
+    if ([scope hasPrefix:@"playlist."] && !SGRBackgroundHasPhoto(scope)) scope = SGRBackgroundPlaylists;
+    SGRInstallPhotoBackground(page, scope, 1);
 }
 
 // The page the repaint hook keeps clear is the one on screen; another playlist pushed over this one sets
@@ -71,7 +123,7 @@ static SGRArtworkField *fieldIn(UIView *page) {
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
     UIView *page = ((UIViewController *)self).viewIfLoaded;
-    if (page) sgr_playlistRoot = page;
+    if (page) { sgr_playlistRoot = page; [page setNeedsLayout]; }
 }
 %end
 

@@ -21,11 +21,12 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Home.h"
+#import "Redesigned/Kit/SGRBackgrounds.h"
 
 // Tries at finding the tab's name before settling for the English one: a miss walks the window.
 static const NSUInteger kTitleTries = 8;
 
-static char kTitleKey, kTabKey;
+static char kTitleKey, kTabKey, kPhotoActiveKey;
 static NSString *sg_tabName;
 
 static void vanish(UIView *view) {
@@ -100,7 +101,19 @@ static BOOL findHeader(UIView *view) {
 
 static void layoutHeader(UIViewController *page) {
     UIView *view = page.viewIfLoaded;
-    if (!view || !findHeader(view)) return;
+    if (!view) return;
+    UIView *photo = SGRInstallPhotoBackground(view, SGRBackgroundHome, 0);
+    BOOL custom = SGRBackgroundHasPhoto(SGRBackgroundHome);
+    sgr_homePhotoRoot = custom ? view : nil;
+    BOOL wasCustom = [objc_getAssociatedObject(view, &kPhotoActiveKey) boolValue];
+    if (custom && !wasCustom) {
+        SGForEachView(view, ^(UIView *part) {
+            if (part == photo || [part isDescendantOfView:photo]) return;
+            if (SGIsBaseSurface(part.layer.backgroundColor)) part.backgroundColor = UIColor.clearColor;
+        });
+    } else if (!custom && wasCustom) view.backgroundColor = UIColor.blackColor;
+    objc_setAssociatedObject(view, &kPhotoActiveKey, @(custom), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (!findHeader(view)) return;
     UIView *header = sg_header;
     UIStackView *stack = sg_stack;
     vanish(sg_scrim);

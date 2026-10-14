@@ -45,3 +45,8 @@ narrowed marquee labels have to survive.
 
 What it does not cover: the real element framework's autolayout, Spotify's own scrolled layout, the
 player's open and close transition, and Spotify's real image loading.
+
+`look` also exercises the Spicy-style blurred artwork texture in the moving field. Record at least ten
+seconds to see the drifting colours and opposing artwork rotations; track changes should crossfade.
+With Reduce Motion or Low Power Mode enabled the background should rest. Pause/resume should hold and
+continue the same phase, and the player’s 120Hz transitions should not run a background display link.

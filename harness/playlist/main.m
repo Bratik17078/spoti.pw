@@ -3,6 +3,8 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import "../download-mock.h"
+#import "Core/SGPrefs.h"
+#import "Redesigned/Kit/SGRBackgrounds.h"
 
 #pragma mark - Spotify's classes, by name
 
@@ -11,6 +13,12 @@
 - (void)sgr_pillFired:(UIView *)pill;
 @end
 @implementation _TtC35ListUXPlatform_FreeTierPlaylistImpl17FTPViewController
+- (NSURL *)spt_pageURI {
+    NSArray *args = NSProcessInfo.processInfo.arguments;
+    NSString *uri = [args containsObject:@"liked"] ? @"spotify:collection:tracks"
+                  : [args containsObject:@"second"] ? @"spotify:playlist:0A1B2C3D4E5F6G7H8I9Jab" : @"spotify:playlist:7n2wHs1TKAczGzO7Dd2rGr";
+    return [NSURL URLWithString:uri];
+}
 - (void)sgr_creatorFired { NSLog(@"[harness] the creator line opened the playlist's owner"); }
 - (void)sgr_pillFired:(UIView *)pill { NSLog(@"[harness] the sheet fired Spotify's %@ pill", pill.accessibilityLabel); }
 @end
@@ -359,6 +367,24 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
 @implementation SGRHarnessDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
+    if ([NSProcessInfo.processInfo.arguments containsObject:@"background-checks"]) {
+        NSUserDefaults *store = NSUserDefaults.standardUserDefaults;
+        id old = [store objectForKey:SGRKeyPlaylistBackgroundMode];
+        NSString *a = @"spotify:playlist:7n2wHs1TKAczGzO7Dd2rGr", *b = @"spotify:playlist:0A1B2C3D4E5F6G7H8I9Jab";
+        SGSetInt(SGRKeyPlaylistBackgroundMode, 0);
+        NSCAssert([SGRBackgroundScopeForPlaylist(a, NO) isEqualToString:SGRBackgroundScopeForPlaylist(b, NO)], @"Shared mode must use one slot");
+        SGSetInt(SGRKeyPlaylistBackgroundMode, 1);
+        NSCAssert(![SGRBackgroundScopeForPlaylist(a, NO) isEqualToString:SGRBackgroundScopeForPlaylist(b, NO)], @"Individual mode must preserve playlist identity");
+        NSCAssert([SGRBackgroundScopeForPlaylist(nil, NO) isEqualToString:SGRBackgroundPlaylists], @"Loading pages use the default photo");
+        NSCAssert([SGRBackgroundScopeForPlaylist(a, YES) isEqualToString:SGRBackgroundLikedSongs], @"Liked Songs always has its own slot");
+        NSString *key = @"spotifyglass.redesign.backgrounds.photo.home";
+        id photo = [store objectForKey:key];
+        [store setObject:@{@"file": @"../../outside.jpg"} forKey:key];
+        NSCAssert(!SGRBackgroundHasPhoto(SGRBackgroundHome), @"An arbitrary saved path must be rejected");
+        if (photo) [store setObject:photo forKey:key]; else [store removeObjectForKey:key];
+        if (old) [store setObject:old forKey:SGRKeyPlaylistBackgroundMode]; else [store removeObjectForKey:SGRKeyPlaylistBackgroundMode];
+        NSLog(@"[harness] background scope and path checks passed");
+    }
     self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
     CGFloat W = self.window.bounds.size.width, H = self.window.bounds.size.height;
 

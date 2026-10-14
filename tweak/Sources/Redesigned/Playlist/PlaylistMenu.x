@@ -1,5 +1,4 @@
-// Playlist redesign: Sort and Mix on the playlist's ⋯ sheet, where the rest of Spotify's curation row
-// already is.
+// Playlist redesign: Sort, Mix and the photo Background action on the playlist's ⋯ sheet.
 //
 // Spotify puts seven pills over the first track -- Add, Mix, Notes, Video, Edit, Sort, Name & details
 // (own-playlist/01.txt:33) -- and the Music app has none of them: its playlist sorts from its own ⋯ menu.
@@ -213,19 +212,22 @@ void SGRPlaylistTakeCuration(UIView *cell) {
 
 @interface SGRMenuBlock : UIView
 @property (nonatomic, weak) UIViewController *menu;
+@property (nonatomic, weak) UIView *page;
 - (void)showSort:(UIView *)sort mix:(UIView *)mix;
 - (CGFloat)wantedHeight;
 @end
 
 @implementation SGRMenuBlock {
-    SGRMenuRow *_sort, *_mix;
+    SGRMenuRow *_sort, *_mix, *_background;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
     _sort = [[SGRMenuRow alloc] initWithFrame:CGRectZero];
     _mix = [[SGRMenuRow alloc] initWithFrame:CGRectZero];
-    for (SGRMenuRow *row in @[_sort, _mix]) {
+    _background = [[SGRMenuRow alloc] initWithFrame:CGRectZero];
+    [_background showWord:@"Background" symbol:@"photo"];
+    for (SGRMenuRow *row in @[_sort, _mix, _background]) {
         row.hidden = YES;
         [row addTarget:self action:@selector(sgr_rowTapped:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:row];
@@ -243,19 +245,20 @@ void SGRPlaylistTakeCuration(UIView *cell) {
     if (mix) [_mix showWord:pillWord(mix) symbol:@"slider.horizontal.3"];
     _sort.hidden = sort == nil;
     _mix.hidden = mix == nil;
+    _background.hidden = self.page == nil;
     [self setNeedsLayout];
 }
 
 - (CGFloat)wantedHeight {
     CGFloat height = 0;
-    for (SGRMenuRow *row in @[_sort, _mix]) height += row.hidden ? 0 : kRowHeight;
+    for (SGRMenuRow *row in @[_sort, _mix, _background]) height += row.hidden ? 0 : kRowHeight;
     return height;
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat y = 0;
-    for (SGRMenuRow *row in @[_sort, _mix]) {
+    for (SGRMenuRow *row in @[_sort, _mix, _background]) {
         if (row.hidden) continue;
         row.frame = CGRectMake(0, y, self.bounds.size.width, kRowHeight);
         y += kRowHeight;
@@ -267,8 +270,11 @@ void SGRPlaylistTakeCuration(UIView *cell) {
 // this one.
 - (void)sgr_rowTapped:(SGRMenuRow *)row {
     UIView *pill = row.pill;
+    UIView *page = self.page;
+    BOOL background = row == _background;
     UIViewController *menu = self.menu;
     void (^fire)(void) = ^{
+        if (background) { SGRPlaylistChooseBackground(page); return; }
         SGRActivate(pill);
         static BOOL logged;
         if (!logged) {
@@ -317,6 +323,8 @@ static UIView *pageFor(UIViewController *menu) {
     id decided = objc_getAssociatedObject(menu, &kDecidedKey);
     if (decided) return decided == NSNull.null ? nil : decided;
     UIView *page = SGRPinnedMoreRecentPage();
+    // Album and artist pages pin a ⋯ too; a photo action here belongs only to FTP playlists.
+    if (SGRPlaylistPageOf(page) != page) page = nil;
     if (page) curationIn(page);
     objc_setAssociatedObject(menu, &kDecidedKey, page ?: (id)NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return page;
@@ -342,6 +350,7 @@ static void install(UIViewController *menu) {
         }
         block = [[SGRMenuBlock alloc] initWithFrame:CGRectZero];
         block.menu = menu;
+        block.page = page;
         objc_setAssociatedObject(block, &kBlockKey, @(inFooter), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(menu, &kBlockKey, block, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }

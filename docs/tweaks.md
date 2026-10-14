@@ -173,7 +173,13 @@ Redesigned:
 
     Kit/          what the redesign builds on (SGRKit.h lists it), the flags it forces (SGRedesign.h, SGRGlassDesign.x for
                   Spotify's own glass design), its repaint hook (SGRRepaint.x), soft top edge, AMOLED black (always on,
-                  SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's)
+                  SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's).
+                  SGRBackgrounds stores photo backgrounds locally at up to 1280px, imported through the system
+                  Photos picker. Appearance > Backgrounds chooses Home, Liked Songs and a default playlist photo,
+                  and switches between one shared playlist photo and individual photos. A playlist's ⋯ > Background
+                  chooses its own photo by its stable spt_pageURI, with the default photo used until one is set.
+                  Photo changes apply immediately; Original restores the artwork field or black Home. The stored
+                  keys share the redesign prefix so Reset clears them, including imports still in flight
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field.
                   Spotify is made to leave the glass bar its height where its own bar is shorter (a phone with a home button,
                   Offline or Private Session under the bar), so the now playing bar and the pages move up with it. Laid out on
@@ -182,7 +188,9 @@ Redesigned:
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
     Player/       the redesigned full screen player (Player.h lists its files), including the Lock Screen's
                   animated Previous and Next glyphs; its more button is handed to
-                  Shared/Player's Speed and pitch, which draws in the menu it opens
+                  Shared/Player's Speed and pitch, which draws in the menu it opens. Moving background blends
+                  artwork colours with pre-blurred artwork textures drifting and rotating behind them; it rests
+                  on pause, during player transitions, off screen, in Low Power Mode and with Reduce Motion
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
                   start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill

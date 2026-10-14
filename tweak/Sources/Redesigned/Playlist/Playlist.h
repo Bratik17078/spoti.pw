@@ -44,3 +44,6 @@ UIView *SGRPlaylistPageOf(UIView *view);
 UIColor *SGRPlaylistFieldColor(UIView *view);
 // The cover of the page `view` is on, for its field to take its colour from. The same image again is a no-op.
 void SGRPlaylistSetArtwork(UIView *view, UIImage *image);
+// Header metadata already proved on FTPViewModelImplementation, for the photo picker and Liked Songs.
+void SGRPlaylistSetBackgroundInfo(UIView *page, NSString *title, BOOL liked);
+void SGRPlaylistChooseBackground(UIView *page);
