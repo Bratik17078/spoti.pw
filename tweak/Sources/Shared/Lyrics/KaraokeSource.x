@@ -77,7 +77,8 @@ static SPTPlayerTrack *upNextIn(SPTPlayerState *state) {
 
 // Main queue only. A full cache is emptied but for the track playing, the one up next and those still
 // being asked for; what goes can be asked for again.
-static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines) {
+static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines, SGLyricsCredit *credit) {
+    if (!track.length || !lines.count) return;
     // A response already in flight may still carry the fallback after a finer source landed.
     if (SGKaraokeLinesTiming(lines) > SGKaraokeLinesTiming(sg_lyrics[track])) return;
     if (sg_lyrics.count >= kKeptTracks && !sg_lyrics[track]) {
@@ -93,10 +94,15 @@ static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines) {
         }
     }
     sg_lyrics[track] = lines;
+    SGLyricsSetCredit(track, credit);
 }
 
 void SGKaraokeKeepLines(NSString *track, NSArray<SGKaraokeLine *> *lines) {
-    dispatch_async(dispatch_get_main_queue(), ^{ keep(track, lines); });
+    SGKaraokeKeepLinesWithCredit(track, lines, nil);
+}
+
+void SGKaraokeKeepLinesWithCredit(NSString *track, NSArray<SGKaraokeLine *> *lines, SGLyricsCredit *credit) {
+    dispatch_async(dispatch_get_main_queue(), ^{ keep(track, lines, credit); });
 }
 
 // Both hooks below see every chunk of every response in the app, so what can be done once is done
@@ -187,10 +193,7 @@ static void requestFromSpotify(NSString *trackID) {
             // Asked after the chain found plain text only: Spotify's replace it only when they are timed.
             NSArray<SGKaraokeLine *> *kept = sg_lyrics[trackID];
             if (kept && SGKaraokeLinesTiming(kept) <= SGKaraokeLinesTiming(lines)) return;
-            keep(trackID, lines);
-            SGLyricsCredit *credit = [SGLyricsCredit new];
-            credit.provider = @"Spotify";
-            SGLyricsSetCredit(trackID, credit);
+            keep(trackID, lines, nil);
         });
     }] resume];
 }
@@ -213,13 +216,12 @@ void SGKaraokeRequestLyrics(NSString *trackID) {
     SGLyricsFetch(trackID, ^(SGLyricsResult *lyrics) {
         [sg_asking removeObject:trackID];
         if (lyrics.karaokeLines) {
-            keep(trackID, lyrics.karaokeLines);   // on the main queue, where the fetch answers
             SGLyricsCredit *credit = lyrics.credit;
             if (!credit) {
                 credit = [SGLyricsCredit new];
                 credit.provider = lyrics.provider;
             }
-            SGLyricsSetCredit(trackID, credit);
+            keep(trackID, lyrics.karaokeLines, credit);   // the fetch answers on the main queue
             // Plain text is shown while Spotify is asked whether it has the song timed.
             if (SGKaraokeLinesTiming(lyrics.karaokeLines) != SGKaraokeTimingNone) return;
         }

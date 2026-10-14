@@ -95,6 +95,10 @@ SGKaraokeTiming SGKaraokeLinesTiming(NSArray<SGKaraokeLine *> *lines);
 
 NSArray<SGKaraokeLine *> *SGKaraokeLinesForTrack(NSString *trackID);   // nil until the lyrics came
 void SGKaraokeKeepLines(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
+// Publish the lines and their attribution together on the main queue. A rejected fallback must
+// not overwrite the credit of the finer lines already displayed. nil credit means Spotify's own.
+@class SGLyricsCredit;
+void SGKaraokeKeepLinesWithCredit(NSString *trackID, NSArray<SGKaraokeLine *> *lines, SGLyricsCredit *credit);
 // Asks spclient for a track's lyrics once, with the headers of Spotify's own requests, for when no
 // page of Spotify's has asked for them, e.g. with the app in the background.
 void SGKaraokeRequestLyrics(NSString *trackID);

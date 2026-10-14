@@ -171,8 +171,7 @@ static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBod
         credit = [SGLyricsCredit new];
         credit.provider = chain.provider.length ? chain.provider : @"Spotify";
     }
-    if (viewLines) SGKaraokeKeepLines(track, viewLines);
-    SGLyricsSetCredit(track, credit);
+    if (viewLines) SGKaraokeKeepLinesWithCredit(track, viewLines, credit);
     // Spotify's JSON may have the song timed where its page does not.
     if (!donor && spotifyBody.length && SGKaraokeLinesTiming(viewLines) == SGKaraokeTimingNone) SGKaraokeAskSpotifyForTiming(track);
 

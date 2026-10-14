@@ -3,6 +3,7 @@
 // line's -at at -rate, and holds at -pauseAt for -holdFor seconds before it runs on.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
+#import "Shared/LyricsSources/LyricsSources.h"
 #if __has_include("Shared/Lyrics/KaraokeMath.h")
 #import "Shared/Lyrics/KaraokeMath.h"
 #endif
@@ -15,7 +16,17 @@ CFTimeInterval SGPlayerTransitionEnds(void) { return 0; }
 
 void SGRPlayFeedback(NSInteger feedback) {}
 void SGPlayFeedback(NSInteger feedback) {}   // the name it has had since Haptics moved to Shared
-NSString *SGLyricsCreditFor(NSString *trackID) { return @"the harness"; }
+@implementation SGLyricsCredit
+@end
+static SGLyricsCredit *sg_credit;
+SGLyricsCredit *SGLyricsCreditFor(NSString *trackID) {
+    if (!sg_credit) {
+        sg_credit = [SGLyricsCredit new];
+        sg_credit.provider = @"the harness";
+    }
+    return sg_credit;
+}
+void SGLyricsSetCredit(NSString *trackID, SGLyricsCredit *credit) { sg_credit = credit; }
 // -translateTo es: the language the Lyrics page would ask translations for.
 NSString *SGLyricsTranslationLanguage(void) { return [NSUserDefaults.standardUserDefaults stringForKey:@"translateTo"]; }
 

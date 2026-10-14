@@ -22,6 +22,23 @@ int main(void) {
     near(SGKaraokeWordProgress(1000, 1000, 900), 1);
     // A short word is fully visible on the next frame even if no frame lands inside its span.
     near(SGKaraokeWordProgress(1016, 1000, 1008), 1);
+    // Visual emphasis eases independently: short syllables must not squeeze motion into 8ms.
+    near(SGKaraokeWordEmphasis(1000, 1000, 1008), 0);
+    assert(SGKaraokeWordEmphasis(1008, 1000, 1008) < 0.01);
+    assert(SGKaraokeWordEmphasis(1140, 1000, 1008) > 0.3);
+    near(SGKaraokeWordEmphasis(1388, 1000, 1008), 0);
+    near(SGKaraokeWordEmphasis(1140, 1000, 2000), 0.5);
+    near(SGKaraokeWordEmphasis(1280, 1000, 2000), 1);
+    near(SGKaraokeWordEmphasis(2190, 1000, 2000), 0.5);
+    near(SGKaraokeWordEmphasis(2380, 1000, 2000), 0);
+    // Seeking back before the word resets the effect.
+    near(SGKaraokeWordEmphasis(990, 1000, 2000), 0);
+    for (int ms = 900; ms <= 2500; ms++) {
+        double effect = SGKaraokeWordEmphasis(ms, 1000, 1008);
+        assert(effect >= 0 && effect <= 1);
+        // No single 120Hz frame can jump the short word's emphasis from dim to full and back.
+        assert(fabs(effect - SGKaraokeWordEmphasis(ms + 8, 1000, 1008)) < 0.06);
+    }
     // At 120Hz, only the next frame is projected, at the actual playback speed.
     near(SGKaraokePresentationMs(10000, true, 1, 100, 100.008, 0), 10008);
     near(SGKaraokePresentationMs(10000, true, 2, 100, 100.008, 0), 10016);

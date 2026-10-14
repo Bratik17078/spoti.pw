@@ -364,7 +364,14 @@ static void keep(SGLyricsWalk *walk) {
     sg_kept[trackID] = lyrics ? merged : NSNull.null;
     // A finer answer may arrive after the initial walk finished. Publish it to the playing lyrics
     // too, so an open page can replace its fallback without another color-lyrics request.
-    if (lyrics && merged.karaokeLines.count) SGKaraokeKeepLines(trackID, merged.karaokeLines);
+    if (lyrics && merged.karaokeLines.count) {
+        SGLyricsCredit *credit = merged.credit;
+        if (!credit) {
+            credit = [SGLyricsCredit new];
+            credit.provider = merged.provider;
+        }
+        SGKaraokeKeepLinesWithCredit(trackID, merged.karaokeLines, credit);
+    }
     @synchronized (sg_ready) {
         if (sg_ready.count >= kKeptTracks && !sg_ready[trackID]) [sg_ready removeAllObjects];
         if (lyrics) sg_ready[trackID] = snapshot(merged);

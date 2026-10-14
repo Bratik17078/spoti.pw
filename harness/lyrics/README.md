@@ -61,4 +61,6 @@ Portable timing regressions use the renderer's actual `KaraokeMath.h`, with no A
 
 On Windows, compile and link separately (omit `-lm`) with Clang and the Windows SDK. These checks
 cover gaps, overlaps, duplicate starts, short/zero-duration words, Bluetooth delay, playback speed,
-pauses, small seeks and stale frame timestamps; UIKit rendering still needs the simulator or phone.
+pauses, small seeks, stale frame timestamps and the gentle emphasis of short syllables; UIKit
+rendering still needs the simulator or phone. With `boundaries`, the 8ms word should fill immediately
+but its lift and glow should settle softly, with no snap at the end of the word.

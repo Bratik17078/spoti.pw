@@ -18,8 +18,8 @@
 #import "Redesigned/Kit/SGRTokens.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
-static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
-static const CGFloat kWordScale = 0.035, kWordGlow = 0.55;
+static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 1.5, kDimScale = 0.97;
+static const CGFloat kWordScale = 0.018, kWordGlow = 0.4;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
 static const CGFloat kBlurPerLine = 1.4, kMaxBlur = 6;
@@ -156,7 +156,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     [self addSubview:_lit];
 
     // A fixed 22pt feather swallowed narrow syllables. Keep the edge inside each word's scale.
-    _edge = MIN(kFillEdge, MAX(2, self.bounds.size.width * 0.24));
+    _edge = MIN(kFillEdge, MAX(2, self.bounds.size.width * 0.38));
     CGFloat width = self.bounds.size.width + _edge;
     _fill = [CAGradientLayer layer];
     _fill.colors = @[(id)UIColor.whiteColor.CGColor, (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
@@ -180,8 +180,9 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     CGFloat left = _rightToLeft ? width - local - _edge / 2 : local - _edge / 2 - width;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    // Finished words no longer need an offscreen mask pass, and a backward seek restores it.
-    _lit.layer.mask = local >= width + _edge / 2 ? nil : _fill;
+    // Finished, settled words no longer need an offscreen mask pass. Keep it while the glow
+    // fades, so removing the mask cannot suddenly reveal a bright halo at the word's end.
+    _lit.layer.mask = local >= width + _edge / 2 && _glow == 0 ? nil : _fill;
     _fill.transform = CATransform3DMakeTranslation(left, 0, 0);
     [CATransaction commit];
 }
@@ -191,12 +192,10 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 }
 
 // Word emphasis follows the same song clock as the fill: no independent animation can keep running
-// through a pause or lag after seeking. Long held syllables sustain the glow; short ones peak softly.
+// through a pause or lag after seeking. A short syllable gets the same gentle settling time as a
+// long one, rather than compressing the entire rise and fall into a few milliseconds.
 - (void)floatAt:(double)ms {
-    double duration = MAX(1, _riseEnd - _riseStart);
-    double attack = MIN(120, duration * 0.35), release = MIN(180, duration * 0.4);
-    double envelope = MAX(0, MIN(1, MIN((ms - _riseStart) / attack, (_riseEnd - ms) / release)));
-    CGFloat emphasis = envelope * envelope * (3 - 2 * envelope);
+    CGFloat emphasis = SGKaraokeWordEmphasis(ms, _riseStart, _riseEnd);
     BOOL still = SGRReduceMotion();
     CGFloat lift = still ? 0 : emphasis;
     if (lift != _lift) {
@@ -205,13 +204,14 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
         self.transform = CGAffineTransformConcat(CGAffineTransformMakeScale(scale, scale),
                                                  CGAffineTransformMakeTranslation(0, -lift * kLift));
     }
-    // Only a syllable currently being sung casts a glow; completed words keep their white fill.
+    // The glow settles gently after the syllable; its white fill still ends on the source timestamp.
     CGFloat glow = emphasis * kWordGlow;
     if (glow != _glow) {
         _glow = glow;
         [CATransaction begin];
         [CATransaction setDisableActions:YES];
         _lit.layer.shadowOpacity = (float)glow;
+        _lit.layer.mask = _filled >= self.bounds.size.width + _edge / 2 && glow == 0 ? nil : _fill;
         [CATransaction commit];
     }
 }
@@ -1080,8 +1080,9 @@ typedef struct {
     BOOL _showing;
     CAGradientLayer *_fade;
     UITextView *_credit;
+    SGLyricsCredit *_sourceCredit;
     CGFloat _fontSize, _margin, _lineGap, _blurPerLine, _maxBlur;
-    BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
+    BOOL _crediting;   // the switch is read once; credit updates follow the displayed source
     BOOL _sweepsEstimates;   // the Lyrics page's "Simulate word-by-word timing", read once like the credit
     BOOL _plain;             // the song has no timing at all: every line lit, nothing follows the clock
     NSDictionary<NSNumber *, NSArray<SGLyricsMeaning *> *> *_meanings;   // Genius's, by line
@@ -1625,6 +1626,7 @@ typedef struct {
 }
 
 - (void)creditTo:(SGLyricsCredit *)credit {
+    _sourceCredit = credit;
     BOOL show = credit.provider.length && (_crediting || credit.required);
     NSMutableAttributedString *text = show ? [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"Lyrics from %@", credit.provider]] : nil;
     NSDictionary *base = @{NSFontAttributeName: _credit.font, NSForegroundColorAttributeName: _credit.textColor};
@@ -1638,8 +1640,7 @@ typedef struct {
     };
     appendPerson(@"uploaded by", credit.uploader, credit.uploaderURL);
     appendPerson(@"made by", credit.maker, credit.makerURL);
-    NSString *plain = text.string;
-    if (plain == _credit.text || [plain isEqualToString:_credit.text]) return;
+    if ([text isEqualToAttributedString:_credit.attributedText]) return;
     _credit.attributedText = text;
     _credit.hidden = !_showing || !text.length;
     [self setNeedsLayout];
@@ -1693,9 +1694,9 @@ typedef struct {
         [self setNeedsLayout];
     }
     [self setShowing:_tops != nil];
-    // The source is settled a moment after the lines are, so it is asked for until it answers.
+    // Attribution can improve after a fallback or change alongside a late source answer.
     SGLyricsCredit *credit = SGLyricsCreditFor(track);
-    if ((_crediting || credit.required) && _lines && !_credit.text.length) [self creditTo:credit];
+    if (_lines && credit != _sourceCredit) [self creditTo:credit];
     if (!_tops) return;
     [self alignFade];
     if (_plain) {

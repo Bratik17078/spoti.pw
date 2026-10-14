@@ -12,6 +12,17 @@ static inline double SGKaraokeWordProgress(double ms, double start, double end) 
     return (ms - start) / (end - start);
 }
 
+// Visual emphasis only: a soft 280ms rise and 380ms settling tail, without stretching word timing.
+// Sampling the song clock keeps this frozen on pause and reversible on a backward seek.
+static inline double SGKaraokeWordEmphasis(double ms, double start, double end) {
+    if (ms <= start || ms >= fmax(start, end) + 380) return 0;
+    double rise = fmin(1, (ms - start) / 280);
+    double fall = fmax(0, fmin(1, (ms - fmax(start, end)) / 380));
+    rise = rise * rise * (3 - 2 * rise);
+    fall = fall * fall * (3 - 2 * fall);
+    return rise * (1 - fall);
+}
+
 static inline double SGKaraokePresentationMs(double position, bool running, double rate,
                                            double now, double shown, double latency) {
     if (!isfinite(position) || position < 0) return -1;

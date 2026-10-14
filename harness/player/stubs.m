@@ -4,6 +4,7 @@
 // is a mock the harness drives: SGRHarnessSetTrack reports a track change to every observer.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
+#import "Shared/LyricsSources/LyricsSources.h"
 #if __has_include("Shared/Lyrics/KaraokeMath.h")
 #import "Shared/Lyrics/KaraokeMath.h"
 #endif
@@ -88,7 +89,16 @@ void SGPrepareFeedback(NSInteger feedback) {}
 
 #pragma mark - Shared/LyricsSources
 
-NSString *SGLyricsCreditFor(NSString *trackID) { return @"the harness"; }
+@implementation SGLyricsCredit
+@end
+SGLyricsCredit *SGLyricsCreditFor(NSString *trackID) {
+    static SGLyricsCredit *credit;
+    if (!credit) {
+        credit = [SGLyricsCredit new];
+        credit.provider = @"the harness";
+    }
+    return credit;
+}
 
 #pragma mark - Shared/Lyrics/KaraokeSource.x
 

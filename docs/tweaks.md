@@ -94,7 +94,9 @@ Shared:
                   timed word by word (the translation taken in the Lyrics page's language); Musixmatch.m, matched by
                   Spotify's track id with an anonymous token, word timed where it has richsync; NetEase.m, word timing from yrc for what the others only line time; LrcLib.m, open and
                   keyless and timed by the line, the floor under the rest; SpicyLyrics.m, matched directly by Spotify's
-                  track id and carrying the provider's community credits. color-lyrics is answered with whichever won
+                  track id and carrying the provider's community credits. Its credit names Spicy Lyrics first,
+                  with its upstream catalog in parentheses. Lines and their credit are published together,
+                  so a late fallback cannot relabel finer lyrics already shown. color-lyrics is answered with whichever won
                   (LyricsHook.x): Spotify's own 200 gets our lines swapped in; a track Spotify's metadata says has none has
                   its request sent to a donor track that does, so the reply is a real 200 (a 404 answered as a 200 in the
                   delegate alone never showed the card on 9.1.78); a 404 is replaced only when the track-change prefetch

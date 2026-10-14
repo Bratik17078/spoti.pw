@@ -87,8 +87,10 @@ static SGKaraokeLine *pronunciationFrom(NSDictionary *entry, SGKaraokeLine *line
 static SGLyricsCredit *creditFrom(NSDictionary *body) {
     SGLyricsCredit *credit = [SGLyricsCredit new];
     NSString *source = string(body[@"source"]);
-    credit.provider = [source isEqualToString:@"apple_music"] ? @"Apple Music"
-                    : [source isEqualToString:@"spotify"] ? @"Spotify" : @"Spicy Lyrics";
+    // `source` names Spicy's upstream catalog, not the service this app fetched from. Name the
+    // selected service first, while preserving the original catalog and community attribution.
+    credit.provider = [source isEqualToString:@"apple_music"] ? @"Spicy Lyrics (Apple Music)"
+                    : [source isEqualToString:@"spotify"] ? @"Spicy Lyrics (Spotify)" : @"Spicy Lyrics";
     credit.required = YES;
     if (![source isEqualToString:@"spicy_lyrics"]) return credit;
     NSDictionary *attribution = [body[@"UploadAttribution"] isKindOfClass:NSDictionary.class] ? body[@"UploadAttribution"] : nil;
