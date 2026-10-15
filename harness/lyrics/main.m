@@ -16,6 +16,7 @@
 //   -dump 1        prints the lines as read, with their pronunciations and translations, and quits
 //   -openMenu S    opens the pronunciation and translation menu S seconds in, as a tap on its button would
 //   -toggleAt S    switches the pronunciation and the translation over S seconds in, as the menu would
+//   -checkNoGlowAt S  fails if any rendered word allows a glow or has a nonzero shadow opacity
 // and the lyrics' own settings by their keys: -spotifyglass.lyricsSimulateWords 1 (sweep line timed
 // lines on the estimate), -spotifyglass.redesign.lyricsPronunciation 1,
 // -spotifyglass.redesign.lyricsTranslation 1, -spotifyglass.redesign.lyricsTextOrder '(translation, lyrics, pronunciation)'.
@@ -27,6 +28,9 @@
 // HEAD's sources (build.sh old) may be from before the lyrics had anything but their words.
 #if __has_include("Redesigned/Lyrics/LyricsText.h")
 #import "Redesigned/Lyrics/LyricsText.h"
+#endif
+#if __has_include("Shared/LiveActivity/IslandLyrics.h")
+BOOL SGCheckIslandLyrics(void);
 #endif
 
 NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml);
@@ -184,6 +188,9 @@ static void timedTick(id self, SEL _cmd) {
 @implementation SGHarnessDelegate
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)options {
     NSUserDefaults *args = NSUserDefaults.standardUserDefaults;
+#if __has_include("Shared/LiveActivity/IslandLyrics.h")
+    if ([args boolForKey:@"checkIslandLyrics"]) exit(SGCheckIslandLyrics() ? 0 : 2);
+#endif
 #ifdef SGRKeyLyricsTextOrder
     // Each launch starts from its own arguments, not from what the menu stored on the last one.
     for (NSString *key in @[SGRKeyLyricsPronunciation, SGRKeyLyricsTranslation, SGRKeyLyricsTextOrder]) [args removeObjectForKey:key];
@@ -228,6 +235,27 @@ static void timedTick(id self, SEL _cmd) {
     }];
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
+    if ([args objectForKey:@"checkNoGlowAt"]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"checkNoGlowAt"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            Class wordClass = NSClassFromString(@"SGRKaraokeWordView");
+            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:karaoke];
+            NSUInteger words = 0, failures = 0;
+            while (queue.count) {
+                UIView *view = queue.lastObject;
+                [queue removeLastObject];
+                if ([view isKindOfClass:wordClass]) {
+                    words++;
+                    UILabel *lit = [view valueForKey:@"lit"];
+                    if ([[view valueForKey:@"glows"] boolValue] || lit.layer.shadowOpacity != 0) failures++;
+                }
+                [queue addObjectsFromArray:view.subviews];
+            }
+            BOOL ok = words > 0 && failures == 0;
+            NSLog(@"[harness] no-glow check: %lu words, %lu failures -- %@", (unsigned long)words,
+                  (unsigned long)failures, ok ? @"PASS" : @"FAIL");
+            if (!ok) exit(2);
+        });
+    }
     if ([args objectForKey:@"openMenu"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"openMenu"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             for (UIView *view in karaoke.subviews) {

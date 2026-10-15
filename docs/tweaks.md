@@ -154,7 +154,21 @@ Shared:
                   sends a new state only when what the view shows changes, local updates only, no push. Taps are
                   LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
                   by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
-                  in front; its switch and its view apply at once
+                  in front; its switch and its view apply at once. Dynamic Island lyrics, also on
+                  Player > Lyrics, independently enables the activity and puts synced lines in the
+                  Island even if the Lock Screen view is Queue or Control menu. The compact Island
+                  shows the sung word and the next word directly, advancing on actual word times;
+                  joined syllables stay together in spaced scripts. Line-timed songs show the opening
+                  phrase without estimating word times. The minimal presentation keeps the sung word,
+                  and the expanded presentation has the full lines. iOS draws
+                  the Island on supported hardware and a Lock Screen activity elsewhere. Both switches
+                  off ends the activity; missing or untimed lyrics show a note, never guessed text.
+                  Island lyrics use the same Bluetooth-compensated clock as the player. To verify on
+                  a device: enable Island lyrics with Live Activity off, then change tracks and pause;
+                  enable Live Activity and choose Queue, checking that only the Lock Screen changes;
+                  disable Island lyrics, checking Queue remains; disable both, checking it ends;
+                  relaunch with just Island lyrics enabled, checking it starts again. Untimed lyrics
+                  should show a note. Test compact and expanded Island presentations on supported iPhones
 
 Native:
 
@@ -194,8 +208,9 @@ Redesigned:
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
                   start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill
-                  and glow); Lyrics glow in Player > Lyrics switches the glow for timed lyrics,
-                  applying immediately to both lyrics surfaces; untimed text never glows. Lines sung over each other lit together,
+                  and glow); Lyrics glow in Player > Lyrics switches the glow for real word-synced lyrics,
+                  applying immediately to both lyrics surfaces; untimed and line-timed text never glows,
+                  including simulated word timing. Lines sung over each other lit together,
                   the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
                   that breathe and fill over its length on a Core Animation timeline laid against the song's clock; and
                   a line's pronunciation (under the words it spells) and translation, switched on from a glass button in

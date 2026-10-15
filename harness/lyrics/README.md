@@ -37,9 +37,17 @@ The fixtures are real TTML and LRC with every word swapped for filler of the sam
 
 Lines timed by the line light up whole; `-spotifyglass.lyricsSimulateWords 1` sweeps them on the
 estimate instead, as the Lyrics page's switch does. Untimed lyrics show every line lit, whatever `-at`.
-Untimed `static` and `spotify-static` must have no word glow. Compare a timed fixture with
+Untimed `static` and `spotify-static`, and line-timed `linetimed` and `spotify-line`, must have no
+word glow, including with simulated word timing enabled. Compare a word-timed fixture with
 `-spotifyglass.redesign.lyricsGlow 0` and `1`: the fill should stay the same, with only the glow changing.
 On a device, Mod Settings > Player > Lyrics > Lyrics glow applies immediately to both lyrics surfaces.
+`-checkIslandLyrics 1` runs the real compact-Island text selector and exits with a result. It checks
+word boundaries, gaps, seeking back, joined syllables, unspaced scripts, overlapping words, identical
+starts, and line-timed/untimed fallbacks. Island text uses real word times only; estimated words
+never make a line-timed song advance word by word.
+`-song spotify-line -spotifyglass.lyricsSimulateWords 1 -checkNoGlowAt 2` checks the actual word
+views and layer shadow opacities, failing if any may glow. Repeat with `spotify-static`, and with
+`boundaries -spotifyglass.redesign.lyricsGlow 0`; all three should report `no-glow check ... PASS`.
 
 Run it on an iOS 26 simulator, by UDID: iOS 27 refuses an app without a scene delegate and crashes it
 at launch. `-dumpTo PATH` writes the dump to a file, for when `--console` shows nothing.
