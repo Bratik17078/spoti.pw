@@ -21,9 +21,11 @@ static NSDictionary *recordFor(NSString *scope) {
     return [record isKindOfClass:NSDictionary.class] ? record : nil;
 }
 static NSString *fileFor(NSString *scope) {
-    id file = recordFor(scope)[@"file"];
+    id value = recordFor(scope)[@"file"];
+    if (![value isKindOfClass:NSString.class]) return nil;
+    NSString *file = value;
     // Only files created by this feature may be read or removed, never an arbitrary stored path.
-    if (![file isKindOfClass:NSString.class] || ![file.pathExtension isEqualToString:@"jpg"]
+    if (![file.pathExtension isEqualToString:@"jpg"]
         || ![file.lastPathComponent isEqualToString:file]) return nil;
     return [[NSUUID alloc] initWithUUIDString:[file stringByDeletingPathExtension]] ? file : nil;
 }
