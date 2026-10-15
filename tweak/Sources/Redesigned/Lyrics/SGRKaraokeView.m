@@ -123,6 +123,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 // Lit with the rest of its line at once rather than swept, and floated up with it over riseStart to
 // riseEnd, which are the word's own times until the sweep says otherwise.
 @property (nonatomic) BOOL whole;
+@property (nonatomic) BOOL glows;
 @property (nonatomic) double riseStart, riseEnd;
 - (void)fillTo:(CGFloat)cursor;
 - (void)fillProgress:(CGFloat)progress;
@@ -150,6 +151,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     _lit.layer.shadowColor = UIColor.whiteColor.CGColor;
     _lit.layer.shadowOffset = CGSizeZero;
     _lit.layer.shadowRadius = 6;
+    _lit.layer.shadowOpacity = 0;
     // Hidden until the line is sung: a masked layer is drawn offscreen every frame even when the
     // mask leaves nothing of it, and a song has hundreds of words waiting their turn.
     _lit.hidden = YES;
@@ -205,7 +207,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
                                                  CGAffineTransformMakeTranslation(0, -lift * kLift));
     }
     // The glow settles gently after the syllable; its white fill still ends on the source timestamp.
-    CGFloat glow = emphasis * kWordGlow;
+    CGFloat glow = _glows ? emphasis * kWordGlow : 0;
     if (glow != _glow) {
         _glow = glow;
         [CATransaction begin];
@@ -657,6 +659,7 @@ static const CGFloat kTranslationLit = 0.6;
     NSMutableArray<SGRKaraokeWordView *> *views = [NSMutableArray arrayWithCapacity:words.count];
     for (NSUInteger i = 0; i < words.count; i++) {
         SGRKaraokeWordView *view = [[SGRKaraokeWordView alloc] initWithWord:words[i] font:font rightToLeft:rightToLeft];
+        view.glows = _line.timing != SGKaraokeTimingNone && SGEnabled(SGRKeyLyricsGlow);
         CGRect frame = frames[i].CGRectValue;
         view.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
         view.offset = offsets[i].doubleValue;
@@ -792,6 +795,8 @@ static const NSUInteger kLinesPerFrame = 4;
 
 - (void)showPlain {
     for (SGRKaraokeWordView *word in _words) {
+        word.glows = NO;
+        [word settle];
         word.lit.hidden = NO;
         word.lit.alpha = 1;
         [word fillTo:CGFLOAT_MAX];

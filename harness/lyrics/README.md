@@ -37,6 +37,9 @@ The fixtures are real TTML and LRC with every word swapped for filler of the sam
 
 Lines timed by the line light up whole; `-spotifyglass.lyricsSimulateWords 1` sweeps them on the
 estimate instead, as the Lyrics page's switch does. Untimed lyrics show every line lit, whatever `-at`.
+Untimed `static` and `spotify-static` must have no word glow. Compare a timed fixture with
+`-spotifyglass.redesign.lyricsGlow 0` and `1`: the fill should stay the same, with only the glow changing.
+On a device, Mod Settings > Player > Lyrics > Lyrics glow applies immediately to both lyrics surfaces.
 
 Run it on an iOS 26 simulator, by UDID: iOS 27 refuses an app without a scene delegate and crashes it
 at launch. `-dumpTo PATH` writes the dump to a file, for when `--console` shows nothing.

@@ -49,6 +49,8 @@ static const CGFloat kLivingHeight = 200;
 static char kOverlayKey, kPlateKey, kTitleKey;
 static BOOL sg_open;
 static BOOL sg_moving;                      // the transition is in flight, so no layout pass may re-place it
+static NSUInteger sg_transition;           // an interrupted animation cannot settle a newer one
+static void replace(void);
 static __weak UIView *sg_host;              // SPTNowPlayingView
 static __weak UIViewController *sg_info, *sg_duration, *sg_floating;
 static __weak UIView *sg_titleElement;      // the arranged element view holding the title and the artist
@@ -167,7 +169,9 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     l.lift = top - CGRectGetMinY(row);
     l.shift = title ? kThumbSide + kThumbGap : 0;
     CGFloat lines = MAX(CGRectGetMaxY(l.thumb), top + row.size.height) + kLyricsTop;
-    l.stage = CGRectMake(CGRectGetMinX(area), lines, area.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
+    // The artwork band belongs to a horizontally paging cell and can be offset during a skip.
+    // Only its vertical measurements belong here; the lyrics always fill the player's viewport.
+    l.stage = CGRectMake(CGRectGetMinX(host.bounds), lines, host.bounds.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
     l.ok = l.stage.size.height > kLivingHeight / 2 && l.lift < 0;
     return l;
 }
@@ -331,9 +335,11 @@ static void setOpen(BOOL open, BOOL animated) {
         overlay.stage.transform = open ? CGAffineTransformIdentity
                                        : CGAffineTransformMakeScale(kLyricsEnterScale, kLyricsEnterScale);
     };
+    NSUInteger transition = ++sg_transition;
     void (^settled)(BOOL) = ^(BOOL finished) {
+        if (transition != sg_transition) return;
         sg_moving = NO;
-        if (sg_open) return;   // opened again while it was going away
+        if (sg_open) { replace(); return; }
         SGRPlayerCoverList().alpha = 1;
         [overlay removeFromSuperview];
     };
@@ -457,6 +463,7 @@ static void replace(void) {
     // while they would be coming, and the lines already up wait out the same grace before they go.
     for (NSNumber *delay in @[@1, @(kLyricsGrace)]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (![track isEqualToString:self->_track]) return;
             SGRPlayerLyricsChanged();
             if (sg_open && delay.doubleValue >= kLyricsGrace && !SGRPlayerLyricsAvailable()) {
                 SGLog(@"redesign player: no lyrics for the track that came on, the cover is back");

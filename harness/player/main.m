@@ -12,10 +12,12 @@
 // HARNESS_VOLUME=0 leaves out the volume row the phone has (trees/clean/player/01.txt has none).
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <math.h>
 #import "Shared/Lyrics/Lyrics.h"
 #import "Redesigned/Player/Player.h"
 #import "Redesigned/Kit/SGRBridges.h"
 #import "Redesigned/Kit/SGRField.h"
+#import "Redesigned/Lyrics/SGRKaraokeView.h"
 
 void SGRHarnessPlayFrom(NSInteger ms);
 void SGRHarnessSetTrack(NSString *uri, NSString *imageURI, BOOL paused);
@@ -484,6 +486,7 @@ static void loadLyrics(void) {
     if ([scenario() isEqualToString:@"artwork"]) [self runArtworkChecks];
     else if ([scenario() isEqualToString:@"look"]) [self runLook];
     else if ([scenario() isEqualToString:@"scroll"]) [self runScrollChecks];
+    else if ([scenario() isEqualToString:@"lyrics-layout"]) [self runLyricsLayoutChecks];
     // Opened, closed and opened again, so a screenshot can be taken of each state and of the move itself.
     else for (NSNumber *at in @[@2, @6, @10]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(at.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -607,6 +610,60 @@ static void after(NSTimeInterval seconds, dispatch_block_t block) {
         list.contentOffset = CGPointMake(0, top);
         NSLog(@"[harness] scroll checks: up %@, down %@, again %@ -- %@", up ? @"held" : @"moved", down ? @"kept" : @"lost",
               again ? @"held" : @"moved", up && down && again ? @"PASS" : @"FAIL");
+    });
+}
+
+// Reproduce a cover list retaining an unhidden cell a whole page away. The lyrics must use
+// the on-screen cover and remain inside the player after repeated layouts and interrupted toggles.
+- (void)runLyricsLayoutChecks {
+    UIView *host = _units.lastObject.view;
+    UIView *cell = _covers.subviews.firstObject;
+    for (UIView *candidate in _covers.subviews)
+        if ([candidate isKindOfClass:_TtC28NowPlaying_ContentLayersImpl16CoverArtCellImpl.class]) cell = candidate;
+    CGFloat width = host.bounds.size.width;
+    UIView *nextCell = box(_covers, _TtC28NowPlaying_ContentLayersImpl16CoverArtCellImpl.class,
+                          CGRectOffset(cell.frame, width, 0), nil);
+    UIView *band = cell.subviews.firstObject;
+    UIView *nextBand = box(nextCell, UIView.class, band.frame, nil);
+    UIView *nextInner = box(nextBand, UIView.class, band.subviews.firstObject.frame, nil);
+    UIView *tilt = box(nextInner, _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView.class,
+                       CGRectMake(0, 8, width - 48, width - 48), nil);
+    box(tilt, UIView.class, tilt.bounds, nil);
+    [tilt setNeedsLayout];
+    [tilt layoutIfNeeded];
+
+    after(2, ^{
+        CGRect cover = SGRPlayerCoverFrameIn(host);
+        BOOL visible = !CGRectIsNull(cover) && CGRectGetMidX(cover) > 0 && CGRectGetMidX(cover) < width;
+        NSLog(@"[harness] visible cover with retained neighbour -- %@", visible ? @"PASS" : @"FAIL");
+        SGRPlayerToggleLyrics();
+    });
+    after(2.1, ^{ SGRPlayerToggleLyrics(); });
+    after(2.2, ^{ SGRPlayerToggleLyrics(); });
+    after(4, ^{
+        [self layOut];
+        __block SGRKaraokeView *lyrics = nil;
+        __block UIView *preview = nil;
+        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:host];
+        while (queue.count) {
+            UIView *view = queue.lastObject;
+            [queue removeLastObject];
+            if ([view isKindOfClass:SGRKaraokeView.class]) lyrics = (SGRKaraokeView *)view;
+            if ([view isKindOfClass:_TtC22Lyrics_NPVContainerKit19LyricsContainerView.class]) preview = view;
+            [queue addObjectsFromArray:view.subviews];
+        }
+        CGRect drawn = lyrics ? [lyrics convertRect:lyrics.bounds toView:host] : CGRectNull;
+        BOOL aligned = SGRPlayerLyricsOpen() && lyrics && fabs(CGRectGetMinX(drawn) - CGRectGetMinX(host.bounds)) < 1
+            && fabs(drawn.size.width - width) < 1;
+        // Simulate a preview source re-enabling both UIView and its layer, then laying out.
+        preview.hidden = NO;
+        preview.alpha = 1;
+        preview.layer.hidden = NO;
+        [preview setNeedsLayout];
+        [preview layoutIfNeeded];
+        BOOL suppressed = preview && preview.alpha == 0 && preview.accessibilityElementsHidden;
+        NSLog(@"[harness] lyrics viewport %@, preview suppression %@ -- %@",
+              aligned ? @"aligned" : @"WRONG", suppressed ? @"held" : @"FAILED", aligned && suppressed ? @"PASS" : @"FAIL");
     });
 }
 

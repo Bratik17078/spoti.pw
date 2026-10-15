@@ -10,6 +10,13 @@
 #endif
 #import "Headers/SPTPlayer.h"
 #import "Shared/Player/PlayerState.h"
+#if __has_include("Redesigned/Lyrics/MeaningSheet.h")
+#import "Redesigned/Lyrics/MeaningSheet.h"
+// The layout harness exercises lyrics placement without asking Genius for annotations.
+void SGLyricsMeaningsFor(NSString *trackID, NSArray<SGKaraokeLine *> *lines,
+                        void (^done)(NSDictionary<NSNumber *, NSArray<SGLyricsMeaning *> *> *byLine)) { done(@{}); }
+void SGRShowMeanings(NSString *lineText, NSArray<SGLyricsMeaning *> *meanings) {}
+#endif
 
 #pragma mark - SGRAccent.x, SGRRepaint.x
 

@@ -194,7 +194,8 @@ Redesigned:
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
                   start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill
-                  and glow); lines sung over each other lit together,
+                  and glow); Lyrics glow in Player > Lyrics switches the glow for timed lyrics,
+                  applying immediately to both lyrics surfaces; untimed text never glows. Lines sung over each other lit together,
                   the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
                   that breathe and fill over its length on a Core Animation timeline laid against the song's clock; and
                   a line's pronunciation (under the words it spells) and translation, switched on from a glass button in

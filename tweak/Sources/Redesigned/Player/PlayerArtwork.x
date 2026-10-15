@@ -63,16 +63,26 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
 
 #pragma mark - where the cover is
 
-// The tilt view of the cover on screen: the queue is a cover per cell and the cells out of view are
-// kept hidden (player/02.txt:521), so the one showing is the one in a window with nothing hidden over it.
+// Reused cover cells can stay unhidden outside the sideways list's viewport. Choose by the
+// visible area as well as hidden ancestors; hash-table order must never choose the next track's cell.
 static UIView *showingTilt(void) {
+    UIView *best = nil;
+    CGFloat bestArea = 0;
     for (UIView *tilt in sg_tilts) {
         if (!tilt.window) continue;
         BOOL hidden = NO;
         for (UIView *v = tilt; v && !hidden; v = v.superview) hidden = v.hidden;
-        if (!hidden) return tilt;
+        if (hidden) continue;
+        CGRect visible = [tilt convertRect:tilt.bounds toView:tilt.window];
+        visible = CGRectIntersection(visible, tilt.window.bounds);
+        for (UIView *v = tilt.superview; v && !CGRectIsNull(visible); v = v.superview) {
+            if (v.clipsToBounds || [v isKindOfClass:UIScrollView.class])
+                visible = CGRectIntersection(visible, [v convertRect:v.bounds toView:tilt.window]);
+        }
+        CGFloat area = CGRectIsNull(visible) ? 0 : visible.size.width * visible.size.height;
+        if (area > bestArea) { best = tilt; bestArea = area; }
     }
-    return nil;
+    return best;
 }
 
 UIView *SGRPlayerCoverList(void) {
@@ -165,9 +175,25 @@ static void scaleEveryCover(BOOL animated) {
 - (void)setHidden:(BOOL)hidden {
     %orig(YES);
 }
+- (void)setAlpha:(CGFloat)alpha {
+    %orig(0);
+}
+- (void)layoutSubviews {
+    %orig;
+    // Keep both visibility paths suppressed, including updates that bypass setHidden:.
+    UIView *preview = (UIView *)self;
+    preview.alpha = 0;
+    preview.layer.hidden = YES;
+    preview.accessibilityElementsHidden = YES;
+    preview.userInteractionEnabled = NO;
+}
 - (void)didMoveToWindow {
     %orig;
-    ((UIView *)self).hidden = YES;
+    UIView *preview = (UIView *)self;
+    preview.hidden = YES;
+    preview.alpha = 0;
+    preview.accessibilityElementsHidden = YES;
+    preview.userInteractionEnabled = NO;
 }
 %end
 

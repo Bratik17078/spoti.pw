@@ -91,3 +91,11 @@
 SGModRow *SGRLyricsTextSizesRow(void) {
     return SGPageRow(@"Text sizes", ^UIViewController *{ return [SGRLyricsTextPage new]; });
 }
+
+SGModRow *SGRLyricsGlowRow(void) {
+    SGModRow *row = SGSwitchRow(@"Lyrics glow", @"A soft glow on synced lyrics. Applies immediately.", SGRKeyLyricsGlow);
+    row.changed = ^(BOOL on) {
+        [NSNotificationCenter.defaultCenter postNotificationName:SGRLyricsTextDidChangeNotification object:nil];
+    };
+    return row;
+}
