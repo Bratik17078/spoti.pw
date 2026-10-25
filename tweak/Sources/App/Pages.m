@@ -3,6 +3,8 @@
 #import "Settings/SGPageStyle.h"
 #import "Pages.h"
 #import "Shared/ArtistBlock/ArtistBlock.h"
+#import "Shared/PlaybackRules/PlaybackRules.h"
+#import "Shared/LyricCards/LyricCards.h"
 #import "Shared/Gestures/Gestures.h"
 #import "Shared/HeadGestures/HeadGestures.h"
 #import "Shared/Lyrics/Lyrics.h"
@@ -76,12 +78,16 @@ static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
     [more addObject:SGDynamicIslandLyricsRow()];
+    [more addObject:SGLiveActivityStatusRow()];
     if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
     NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithObject:SGLyricsSourcesSection(redesigned)];
     if (redesigned) {
         [sections addObject:SGSection(@"Display", @[SGLyricsWordTimingRow(), SGRLyricsGlowRow(), SGRLyricsTextSizesRow(), SGLyricsTranslationLanguageRow(), SGLyricsMeaningsRow()])];
     }
     [sections addObject:SGSection(nil, more)];
+    [sections addObject:SGSection(@"Share", @[
+        SGWithSymbol(SGActionRow(@"Create lyric card", @"Choose lines from the song playing now", ^{ SGPresentPlayingLyricCard(); }), @"square.and.arrow.up"),
+    ])];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];
 }
 
@@ -97,6 +103,7 @@ UIViewController *SGPlayerSettingsPage(void) {
         SGWithSymbol(SGPageRow(@"Head gestures", ^UIViewController *{ return SGHeadGesturesSettingsPage(); }), @"airpodspro"),
         SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
         SGWithSymbol(blocked, @"person.crop.circle.badge.xmark"),
+        SGWithSymbol(SGPageRow(@"Playback rules", ^UIViewController *{ return SGPlaybackRulesSettingsPage(); }), @"minus.circle"),
     ])];
     NSMutableArray<SGModRow *> *pages = [NSMutableArray array];
     if (native) {

@@ -26,6 +26,10 @@ void SGSetPlayerSpeed(double speed) { sg_speed = speed; NSLog(@"[harness] speed 
 float SGPlayerPitch(void) { return sg_pitch; }
 void SGSetPlayerPitch(float semitones) { sg_pitch = semitones; NSLog(@"[harness] pitch %.0f", semitones); }
 BOOL SGPlayerPitchAvailable(void) { return YES; }
+// The layout harness keeps these actions local; feature behavior is covered in harness/player-features.
+id SGPlayerState(void) { return nil; }
+void SGPresentPlaybackRuleActions(UIViewController *presenter, id track, UIView *source) { NSLog(@"[harness] playback rules tapped"); }
+void SGPresentLyricCard(UIViewController *presenter, id track) { NSLog(@"[harness] lyric card tapped"); }
 
 static BOOL argument(NSString *name) {
     return [NSProcessInfo.processInfo.arguments containsObject:name];

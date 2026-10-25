@@ -9,12 +9,15 @@
 #import "Core/SGCore.h"
 #import "Headers/SPTPlayer.h"
 #import "Shared/Lyrics/Lyrics.h"
+#import "Shared/Player/PlayerState.h"
 #import "LiveActivity.h"
 #import "IslandLyrics.h"
+#import "IslandOverlay.h"
 
 API_AVAILABLE(ios(17.0))
 @interface SGLiveActivityBridge : NSObject
 @property (class, nonatomic, readonly) BOOL isShowing;
+@property (class, nonatomic, readonly) NSString *status;
 + (void)showWithView:(NSInteger)view paused:(BOOL)paused line:(NSString *)line nextLine:(NSString *)nextLine
         islandLyrics:(BOOL)islandLyrics islandWord:(NSString *)islandWord islandNextWord:(NSString *)islandNextWord
               titles:(NSArray<NSString *> *)titles artists:(NSArray<NSString *> *)artists uris:(NSArray<NSString *> *)uris
@@ -106,7 +109,7 @@ static NSInteger repeatModeOf(SPTPlayerOptions *options) {
 
 // The line being sung and the one after it; before the first line, between lines and without lyrics
 // at all, a note holds the place.
-static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islandWord, NSString **islandNextWord) {
+static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islandWord, NSString **islandNextWord, BOOL *timed) {
     *islandWord = @"♪";
     *islandNextWord = @"";
     NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(trackID);
@@ -119,6 +122,7 @@ static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islan
     }
     // Plain text has no line being sung: the note, as for a track with no lyrics.
     if (lines && SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) lines = nil;
+    *timed = lines.count > 0;
     NSInteger position = (NSInteger)SGKaraokePresentationTime(CACurrentMediaTime(), NULL, NULL);
     // With two voices at once, the one that came in first, and the one singing over it as the next.
     NSInteger index = SGKaraokeLeadLine(lines, position);
@@ -157,9 +161,9 @@ static void checkSleepTimer(id<SPTPlayer> player, SPTPlayerState *state, NSStrin
 
 static void tick(void) API_AVAILABLE(ios(17.0)) {
     id<SPTPlayer> player = SGKaraokePlayer();
-    SPTPlayerState *state = player.state;
+    SPTPlayerState *state = player.state ?: SGPlayerState();
     SPTPlayerTrack *track = state.track;
-    if (!track.trackTitle.length) return;
+    if (!track.trackTitle.length) { SGIslandOverlayHide(); return; }
     NSString *trackID = SGKaraokePlayingTrack();
     checkSleepTimer(player, state, trackID);
 
@@ -169,7 +173,10 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
     NSTimeInterval every = paused ? kPausedTick : kTick;
     if (sg_timer && sg_tickEvery != every) startTimer(every);
     NSString *line = @"", *next = @"", *islandWord = @"", *islandNextWord = @"";
-    if (view == SGLiveActivityLyrics || islandLyrics) line = lyricsLine(trackID, &next, &islandWord, &islandNextWord);
+    BOOL timed = NO;
+    if (view == SGLiveActivityLyrics || islandLyrics) line = lyricsLine(trackID, &next, &islandWord, &islandNextWord, &timed);
+    if (islandLyrics && timed) SGIslandOverlayShow(trackID, line, next, paused);
+    else SGIslandOverlayHide();
     if (!islandLyrics) islandWord = islandNextWord = @"";
 
     NSMutableArray<NSString *> *titles = [NSMutableArray array], *artists = [NSMutableArray array], *uris = [NSMutableArray array];
@@ -267,6 +274,7 @@ static void runAction(NSString *action) {
 }
 
 void SGSetLiveActivityEnabled(BOOL on) {
+    if (!SGFlag(SGKeyDynamicIslandLyrics, NO)) SGIslandOverlayHide();
     if (@available(iOS 17.0, *)) {
         // Either setting can keep the single activity alive. Changing its presentation must not
         // reset a sleep timer or end an activity still requested by the other switch.
@@ -290,6 +298,11 @@ void SGSetLiveActivityEnabled(BOOL on) {
         static dispatch_once_t observing;
         dispatch_once(&observing, ^{
             NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+            [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+                if (!sg_timer) return;
+                sg_lastStart = nil;
+                tick();
+            }];
             [center addObserverForName:@"SGLiveActivityPlay" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
                 if ([note.object isKindOfClass:NSString.class]) playQueued(note.object);
             }];
@@ -304,6 +317,11 @@ void SGSetLiveActivityEnabled(BOOL on) {
         tick();
         SGLog(@"live activity: on");
     }
+}
+
+NSString *SGLiveActivityStatus(void) {
+    if (@available(iOS 17.0, *)) return SGLiveActivityBridge.status;
+    return @"Needs iOS 17";
 }
 
 %ctor {

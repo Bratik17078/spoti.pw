@@ -22,6 +22,7 @@
 #import "Settings/SGModPage.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "SGRVisualizer.h"
 
 // Past the plane's edges: above for the pull that dismisses the player, below for the bounce at the end
 // of the cards.
@@ -29,7 +30,7 @@ static const UIEdgeInsets kBleed = {200, 0, 600, 0};
 // A cover this narrow is a placeholder glyph or the bar's, not the player's.
 static const CGFloat kCoverMinWidth = 200;
 
-static char kFieldKey, kCoverImageKey;
+static char kFieldKey, kCoverImageKey, kVisualizerKey;
 static __weak SGRArtworkField *sg_field;
 static __weak UIScrollView *sg_coverList;
 static __weak UIImage *sg_lastCover;
@@ -64,11 +65,27 @@ static SGRArtworkField *fieldIn(UIView *plane) {
     // Made while the player is about to open: whatever is read lands in the first frames of the
     // animation, where a crossfade would only add work.
     showArtwork(field, NO);
+    SGRVisualizer *visualizer = [[SGRVisualizer alloc] initWithFrame:field.bounds];
+    visualizer.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [field addSubview:visualizer];
+    objc_setAssociatedObject(plane, &kVisualizerKey, visualizer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     SGLog(@"redesign player: field in the background plane %.0fx%.0f, artwork %@", plane.bounds.size.width, plane.bounds.size.height, SGRNowPlayingArtwork(NULL, NULL) ? @"ready" : @"not read yet");
     return field;
 }
 
 %hook _TtC21NowPlaying_ScrollImpl27NPVBackgroundViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    UIView *plane = ((UIViewController *)self).viewIfLoaded;
+    if (!plane) return;
+    fieldIn(plane);
+    ((SGRVisualizer *)objc_getAssociatedObject(plane, &kVisualizerKey)).playerVisible = YES;
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    UIView *plane = ((UIViewController *)self).viewIfLoaded;
+    ((SGRVisualizer *)objc_getAssociatedObject(plane, &kVisualizerKey)).playerVisible = NO;
+}
 - (void)viewDidLayoutSubviews {
     %orig;
     UIView *plane = ((UIViewController *)self).viewIfLoaded;

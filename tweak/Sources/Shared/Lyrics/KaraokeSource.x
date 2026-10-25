@@ -10,6 +10,7 @@
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Headers/SPTPlayer.h"
 #import "Shared/Player/SpeedPitch.h"
+#import "Shared/Player/PlayerState.h"
 #import "KaraokeMath.h"
 #import <AVFoundation/AVFoundation.h>
 
@@ -236,7 +237,8 @@ id SGKaraokePlayer(void) {
 
 static SPTPlayerState *playerState(void) {
     id player = sg_player;
-    return [player respondsToSelector:@selector(state)] ? [(id<SPTPlayer>)player state] : nil;
+    SPTPlayerState *state = [player respondsToSelector:@selector(state)] ? [(id<SPTPlayer>)player state] : nil;
+    return state ?: SGPlayerState();
 }
 
 NSString *SGKaraokePlayingTrack(void) {

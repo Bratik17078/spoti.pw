@@ -7,6 +7,7 @@
 //     LiveActivityBridge.swift    ActivityKit, which is Swift only
 //     LiveActivityShared.swift    the attributes and the taps' intents, compiled into the extension too
 //     LiveActivitySettings.m      its page, opened from the root of Mod Settings
+//     IslandOverlay.m             the expanding lyrics capsule while Spotify itself is foreground
 //
 // Every tap in the card runs an intent inside Spotify and takes a second or two to show on the card.
 //
@@ -47,3 +48,5 @@ UIViewController *SGLiveActivitySettingsPage(void);
 NSString *SGLiveActivitySummary(void);
 @class SGModRow;
 SGModRow *SGDynamicIslandLyricsRow(void);
+SGModRow *SGLiveActivityStatusRow(void);
+NSString *SGLiveActivityStatus(void);

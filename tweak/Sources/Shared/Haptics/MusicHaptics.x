@@ -36,6 +36,7 @@
 #import "Core/SGRebind.h"
 #import "Haptics.h"
 #import "SGMusicAnalyzer.h"
+#import "Shared/AudioVisualization/Visualization.h"
 
 // Core Haptics takes about this long from a scheduled time to the Taptic Engine's peak.
 static const double kHapticLead = 0.012;
@@ -119,7 +120,9 @@ static inline float sampleAt(const void *data, UInt32 index, UInt32 bytes, BOOL 
 static OSStatus rendered(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *timestamp, UInt32 bus,
                          UInt32 frames, AudioBufferList *data) {
     if (!(*flags & kAudioUnitRenderAction_PostRender) || bus != 0 || !data || !data->mNumberBuffers || !frames) return noErr;
-    if (!atomic_load_explicit(&sg_listening, memory_order_relaxed)) return noErr;
+    BOOL haptics = atomic_load_explicit(&sg_listening, memory_order_relaxed);
+    BOOL visualizer = SGVisualizationListening();
+    if (!haptics && !visualizer) return noErr;
     if (*flags & kAudioUnitRenderAction_OutputIsSilence) return noErr;
 
     uint64_t layout = atomic_load_explicit(&sg_layout, memory_order_relaxed);
@@ -162,7 +165,8 @@ static OSStatus rendered(void *refCon, AudioUnitRenderActionFlags *flags, const 
             sg_mono[i] = 0.5f * (sampleAt(left, at, bytes, isFloat, fraction) + sampleAt(right, at + rightOffset, bytes, isFloat, fraction));
         }
         uint64_t chunkTime = hostTime + (uint64_t)(done / sampleRate / sg_secondsPerTick);
-        SGMusicAnalyzerProcess(&sg_analyzer, sg_mono, count, chunkTime, pushEvent, NULL);
+        if (haptics) SGMusicAnalyzerProcess(&sg_analyzer, sg_mono, count, chunkTime, pushEvent, NULL);
+        if (visualizer) SGVisualizationPush(sg_mono, count, sampleRate, chunkTime * sg_secondsPerTick);
         done += count;
     }
     if (atomic_load_explicit(&sg_head, memory_order_relaxed) != headBefore) dispatch_semaphore_signal(sg_wake);

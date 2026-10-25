@@ -45,12 +45,18 @@ On a device, Mod Settings > Player > Lyrics > Lyrics glow applies immediately to
 word boundaries, gaps, seeking back, joined syllables, unspaced scripts, overlapping words, identical
 starts, and line-timed/untimed fallbacks. Island text uses real word times only; estimated words
 never make a line-timed song advance word by word.
+`-islandOverlay 1` runs the foreground lyrics capsule over the harness with the real clock and
+fixtures. On a portrait iPhone simulator, `-song boundaries -at 1000 -pauseAt 1200 -islandOverlay 1
+-overlayChecksAt 2` checks safe-area placement, expanded/collapsed geometry, touch pass-through,
+preservation of the app's key window, and cleanup. Verify Reduce Motion, large Dynamic Type, a
+right-to-left fixture, rotation, foreground/background, and automatic expansion after a long break.
 `-song spotify-line -spotifyglass.lyricsSimulateWords 1 -checkNoGlowAt 2` checks the actual word
 views and layer shadow opacities, failing if any may glow. Repeat with `spotify-static`, and with
 `boundaries -spotifyglass.redesign.lyricsGlow 0`; all three should report `no-glow check ... PASS`.
 
-Run it on an iOS 26 simulator, by UDID: iOS 27 refuses an app without a scene delegate and crashes it
-at launch. `-dumpTo PATH` writes the dump to a file, for when `--console` shows nothing.
+Run it on an iOS 26 or newer iPhone simulator, by UDID. The harness supplies a scene delegate so the
+foreground overlay attaches to a real window scene. `-dumpTo PATH` writes the dump to a file, for when
+`--console` shows nothing.
 
 A real file goes in with `-file /path/song.ttml`: the simulator reads the Mac's paths.
 

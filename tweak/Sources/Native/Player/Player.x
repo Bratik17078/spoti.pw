@@ -24,6 +24,7 @@
 #import "Native/Appearance/Repaint.h"
 #import "NowPlaying.h"
 #import "Native/Appearance/Appearance.h"
+#import "Shared/Player/SpeedPitch.h"
 
 static const CGFloat kButtonMin = 36, kButtonMax = 48;
 static const CGFloat kArtRadius = 12;
@@ -62,6 +63,11 @@ static void glassBehindRoundButtons(UIViewController *unit) {
 %hook _TtC20NowPlaying_ModesImpl18HeaderElementsUnit
 - (void)viewDidLayoutSubviews {
     %orig;
+    // The same identifier is recorded on the header in trees/clean/player/01.txt:122.
+    // Watch it independently of the native glass switch so shared menu actions stay available.
+    SGForEachView(((UIViewController *)self).viewIfLoaded, ^(UIView *view) {
+        if ([view.accessibilityIdentifier isEqualToString:@"Context menu"]) SGPlayerMenuWatchMoreButton(view);
+    });
     glassBehindRoundButtons((UIViewController *)self);
 }
 %end
