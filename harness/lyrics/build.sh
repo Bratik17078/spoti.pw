@@ -22,6 +22,7 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     "$SRC"/Redesigned/Lyrics/SGRKaraokeView.m $( [ -f "$SRC"/Redesigned/Lyrics/LyricsText.m ] && echo "$SRC"/Redesigned/Lyrics/LyricsText.m ) "$SRC"/Shared/Lyrics/KaraokeTiming.m "$SRC"/Shared/Lyrics/Protobuf.m \
     "$SRC"/Shared/LyricsSources/SGTTML.m "$SRC"/Redesigned/Kit/SGRTokens.m \
     $( [ -f "$SRC"/Shared/LiveActivity/IslandLyrics.m ] && echo "$SRC"/Shared/LiveActivity/IslandLyrics.m "$HERE/island.m" ) \
+    $( [ -f "$SRC"/Shared/LiveActivity/IslandOverlay.m ] && echo "$SRC"/Shared/LiveActivity/IslandOverlay.m ) \
     $( [ -f "$SRC"/Shared/LyricsMeanings/Meanings.m ] && echo "$SRC"/Shared/LyricsMeanings/Meanings.m "$SRC"/Redesigned/Lyrics/MeaningSheet.m ) \
     "$SRC"/Core/SGLog.m "$SRC"/Core/SGPrefs.m "$SRC"/Core/SGGlass.m \
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreText -framework Foundation \
@@ -41,6 +42,12 @@ cat > "$APP/Info.plist" <<PLIST
 <key>UILaunchScreen</key><dict/>
 <key>UIApplicationSceneManifest</key><dict>
   <key>UIApplicationSupportsMultipleScenes</key><false/>
+  <key>UISceneConfigurations</key><dict>
+    <key>UIWindowSceneSessionRoleApplication</key><array><dict>
+      <key>UISceneConfigurationName</key><string>Lyrics</string>
+      <key>UISceneDelegateClassName</key><string>SGHarnessSceneDelegate</string>
+    </dict></array>
+  </dict>
 </dict>
 </dict></plist>
 PLIST
