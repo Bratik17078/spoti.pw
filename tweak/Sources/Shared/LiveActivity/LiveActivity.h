@@ -25,6 +25,8 @@
 #define SGKeyLiveActivity @"spotifyglass.liveActivity"
 // Which view it shows, the index into the page's list.
 #define SGKeyLiveActivityView @"spotifyglass.liveActivity.view"
+// An independent request for synced lyrics in the Island, even when another Live Activity view is chosen.
+#define SGKeyDynamicIslandLyrics @"spotifyglass.liveActivity.islandLyrics"
 // What the keys were called while this was the redesign's alone; LiveActivity.x's %ctor moves them over.
 #define SGKeyLiveActivityWas @"spotifyglass.redesign.liveActivity"
 #define SGKeyLiveActivityViewWas @"spotifyglass.redesign.liveActivity.view"
@@ -35,7 +37,8 @@ typedef NS_ENUM(NSInteger, SGLiveActivityView) {
     SGLiveActivityPanel,   // the control menu
 };
 
-// From the switch: starts following the player (and the activity, the app being in front) or ends both.
+// From either switch: `on` is the main Live Activity setting; Island lyrics can keep it running too.
+// Starts following the player in front, or ends the activity when neither setting requests it.
 void SGSetLiveActivityEnabled(BOOL on);
 
 @class UIViewController;
@@ -43,13 +46,7 @@ void SGSetLiveActivityEnabled(BOOL on);
 UIViewController *SGLiveActivitySettingsPage(void);
 // What the root's row reads out beside its chevron: the view shown, or Off.
 NSString *SGLiveActivitySummary(void);
-<<<<<<< HEAD
-<<<<<<< HEAD
 @class SGModRow;
 SGModRow *SGDynamicIslandLyricsRow(void);
 SGModRow *SGLiveActivityStatusRow(void);
 NSString *SGLiveActivityStatus(void);
-=======
->>>>>>> parent of 98714e2 (heah)
-=======
->>>>>>> parent of 98714e2 (heah)

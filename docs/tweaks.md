@@ -168,8 +168,6 @@ Shared:
                   sends a new state only when what the view shows changes, local updates only, no push. Taps are
                   LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
                   by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
-<<<<<<< HEAD
-<<<<<<< HEAD
                   in front; its switch and its view apply at once. Dynamic Island lyrics, also on
                   Player > Lyrics, independently enables the activity and puts synced lines in the
                   Island even if the Lock Screen view is Queue or Control menu. The compact Island
@@ -195,12 +193,6 @@ Shared:
                   disable Island lyrics, checking Queue remains; disable both, checking it ends;
                   relaunch with just Island lyrics enabled, checking it starts again. Untimed lyrics
                   should show a note. Test compact and expanded Island presentations on supported iPhones
-=======
-                  in front; its switch and its view apply at once
->>>>>>> parent of 98714e2 (heah)
-=======
-                  in front; its switch and its view apply at once
->>>>>>> parent of 98714e2 (heah)
 
 Native:
 
@@ -244,8 +236,9 @@ Redesigned:
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
                   start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill
-                  and glow); Lyrics glow in Player > Lyrics switches the glow for timed lyrics,
-                  applying immediately to both lyrics surfaces; untimed text never glows. Lines sung over each other lit together,
+                  and glow); Lyrics glow in Player > Lyrics switches the glow for real word-synced lyrics,
+                  applying immediately to both lyrics surfaces; untimed and line-timed text never glows,
+                  including simulated word timing. Lines sung over each other lit together,
                   the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
                   that breathe and fill over its length on a Core Animation timeline laid against the song's clock; and
                   a line's pronunciation (under the words it spells) and translation, switched on from a glass button in

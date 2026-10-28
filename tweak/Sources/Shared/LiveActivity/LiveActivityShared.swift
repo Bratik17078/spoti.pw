@@ -29,6 +29,10 @@ struct SGLyricsAttributes: ActivityAttributes {
         // Lyrics: the line being sung and the one after it.
         var line: String
         var nextLine: String
+        // Optional so an activity created by an older build still decodes after an update.
+        var islandLyrics: Bool? = nil
+        var islandWord: String? = nil
+        var islandNextWord: String? = nil
         // Queue, and the control menu's queue tab: the tracks up next.
         var tracks: [Track]
         // The control menu.

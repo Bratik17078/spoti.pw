@@ -7,8 +7,6 @@ static NSArray<NSString *> *viewNames(void) {
     return @[@"Lyrics", @"Queue", @"Control menu"];
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 SGModRow *SGDynamicIslandLyricsRow(void) {
     if (@available(iOS 17.0, *)) {
         SGModRow *row = SGOptionRow(@"Dynamic Island lyrics", @"Full synced lines in an expanding panel inside Spotify.", SGKeyDynamicIslandLyrics);
@@ -25,28 +23,19 @@ SGModRow *SGLiveActivityStatusRow(void) {
     return row;
 }
 
-=======
->>>>>>> parent of 98714e2 (heah)
-=======
->>>>>>> parent of 98714e2 (heah)
 UIViewController *SGLiveActivitySettingsPage(void) {
     SGModRow *on = SGOptionRow(@"Live Activity", nil, SGKeyLiveActivity);
     on.changed = ^(BOOL value) { SGSetLiveActivityEnabled(value); };
     SGModRow *view = SGChoiceRow(@"Shows", nil, SGKeyLiveActivityView, viewNames(), SGLiveActivityLyrics);
     return [[SGModPage alloc] initWithTitle:@"Live Activity" intro:nil sections:@[
         SGSection(nil, @[on, view]),
-<<<<<<< HEAD
-<<<<<<< HEAD
         SGSection(nil, @[SGDynamicIslandLyricsRow(), SGLiveActivityStatusRow()]),
-=======
->>>>>>> parent of 98714e2 (heah)
-=======
->>>>>>> parent of 98714e2 (heah)
     ] footer:nil];
 }
 
 NSString *SGLiveActivitySummary(void) {
-    if (!SGFlag(SGKeyLiveActivity, NO)) return @"Off";
+    if (!SGFlag(SGKeyLiveActivity, NO))
+        return SGFlag(SGKeyDynamicIslandLyrics, NO) ? @"Dynamic Island lyrics" : @"Off";
     NSInteger index = SGInt(SGKeyLiveActivityView, SGLiveActivityLyrics);
     NSArray<NSString *> *names = viewNames();
     return index >= 0 && index < (NSInteger)names.count ? names[index] : names.firstObject;

@@ -55,7 +55,9 @@ struct SGLyricsLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.bottom) {
                     Group {
-                        if context.state.view == .panel {
+                        if context.state.islandLyrics == true {
+                            LyricsView(state: context.state)
+                        } else if context.state.view == .panel {
                             Summary(state: context.state)
                         } else {
                             ContentView(state: context.state, upNext: 3)
@@ -65,10 +67,16 @@ struct SGLyricsLiveActivity: Widget {
                     .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                Image(systemName: "music.note")
-                    .foregroundStyle(green)
+                if context.state.islandLyrics == true {
+                    IslandWord(text: context.state.islandWord ?? "♪", upcoming: false)
+                } else {
+                    Image(systemName: "music.note")
+                        .foregroundStyle(green)
+                }
             } compactTrailing: {
-                if let end = context.state.timerEnd, end > Date() {
+                if context.state.islandLyrics == true {
+                    IslandWord(text: context.state.islandNextWord ?? "", upcoming: true)
+                } else if let end = context.state.timerEnd, end > Date() {
                     Text(timerInterval: Date()...end, countsDown: true)
                         .monospacedDigit()
                         .foregroundStyle(green)
@@ -78,11 +86,34 @@ struct SGLyricsLiveActivity: Widget {
                         .foregroundStyle(green)
                 }
             } minimal: {
-                Image(systemName: "music.note")
-                    .foregroundStyle(green)
+                if context.state.islandLyrics == true {
+                    IslandWord(text: context.state.islandWord ?? "♪", upcoming: false, width: 36)
+                } else {
+                    Image(systemName: "music.note")
+                        .foregroundStyle(green)
+                }
             }
             .widgetURL(URL(string: "spotify:"))
         }
+    }
+}
+
+// The sung word stays readable in the compact/minimal presentations; it never needs a gesture.
+private struct IslandWord: View {
+    let text: String
+    let upcoming: Bool
+    var width: CGFloat = 80
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(upcoming ? .medium : .bold))
+            .foregroundStyle(.white.opacity(upcoming ? 0.55 : 1))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .truncationMode(.tail)
+            .frame(maxWidth: width)
+            .direction(of: text)
+            .accessibilityLabel(text)
     }
 }
 

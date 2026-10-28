@@ -16,6 +16,7 @@
 //   -dump 1        prints the lines as read, with their pronunciations and translations, and quits
 //   -openMenu S    opens the pronunciation and translation menu S seconds in, as a tap on its button would
 //   -toggleAt S    switches the pronunciation and the translation over S seconds in, as the menu would
+//   -checkNoGlowAt S  fails if any rendered word allows a glow or has a nonzero shadow opacity
 // and the lyrics' own settings by their keys: -spotifyglass.lyricsSimulateWords 1 (sweep line timed
 // lines on the estimate), -spotifyglass.redesign.lyricsPronunciation 1,
 // -spotifyglass.redesign.lyricsTranslation 1, -spotifyglass.redesign.lyricsTextOrder '(translation, lyrics, pronunciation)'.
@@ -29,18 +30,12 @@
 #if __has_include("Redesigned/Lyrics/LyricsText.h")
 #import "Redesigned/Lyrics/LyricsText.h"
 #endif
-<<<<<<< HEAD
-<<<<<<< HEAD
 #if __has_include("Shared/LiveActivity/IslandLyrics.h")
 BOOL SGCheckIslandLyrics(void);
 #endif
 #if __has_include("Shared/LiveActivity/IslandOverlay.h")
 #import "Shared/LiveActivity/IslandOverlay.h"
 #endif
-=======
->>>>>>> parent of 98714e2 (heah)
-=======
->>>>>>> parent of 98714e2 (heah)
 
 NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml);
 void SGHarnessStartClock(double at, double rate, double pauseAt, double holdFor);
@@ -201,6 +196,9 @@ static void timedTick(id self, SEL _cmd) {
 }
 - (BOOL)showInScene:(UIWindowScene *)scene {
     NSUserDefaults *args = NSUserDefaults.standardUserDefaults;
+#if __has_include("Shared/LiveActivity/IslandLyrics.h")
+    if ([args boolForKey:@"checkIslandLyrics"]) exit(SGCheckIslandLyrics() ? 0 : 2);
+#endif
 #ifdef SGRKeyLyricsTextOrder
     // Each launch starts from its own arguments, not from what the menu stored on the last one.
     for (NSString *key in @[SGRKeyLyricsPronunciation, SGRKeyLyricsTranslation, SGRKeyLyricsTextOrder]) [args removeObjectForKey:key];
@@ -259,8 +257,6 @@ static void timedTick(id self, SEL _cmd) {
     }];
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
-<<<<<<< HEAD
-<<<<<<< HEAD
 #if __has_include("Shared/LiveActivity/IslandOverlay.h")
     if ([args objectForKey:@"overlayChecksAt"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"overlayChecksAt"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -310,10 +306,6 @@ static void timedTick(id self, SEL _cmd) {
             if (!ok) exit(2);
         });
     }
-=======
->>>>>>> parent of 98714e2 (heah)
-=======
->>>>>>> parent of 98714e2 (heah)
     if ([args objectForKey:@"openMenu"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"openMenu"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             for (UIView *view in karaoke.subviews) {

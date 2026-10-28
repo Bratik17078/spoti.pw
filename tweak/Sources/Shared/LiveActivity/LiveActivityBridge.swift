@@ -86,7 +86,8 @@ public final class SGLiveActivityBridge: NSObject {
     // A new activity can only be requested while the app is in the foreground; an update works from the background.
     // One call per new state. View and tab are SGLiveActivityView's and SGLiveActivityTab's values;
     // titles, artists and URIs pair up by index, the tracks up next; timerEnd is nil without a timer.
-    @objc public static func show(view: Int, paused: Bool, line: String, nextLine: String,
+    @objc public static func show(view: Int, paused: Bool, line: String, nextLine: String, islandLyrics: Bool,
+                                  islandWord: String, islandNextWord: String,
                                   titles: [String], artists: [String], uris: [String],
                                   tab: Int, title: String, artist: String, shuffle: Bool, repeatMode: Int,
                                   timerEnd: Date?, timerEndOfTrack: Bool) {
@@ -95,7 +96,8 @@ public final class SGLiveActivityBridge: NSObject {
         }
         let state = SGLyricsAttributes.ContentState(
             view: SGLyricsAttributes.View(rawValue: view) ?? .lyrics, paused: paused,
-            line: line, nextLine: nextLine, tracks: tracks,
+            line: line, nextLine: nextLine, islandLyrics: islandLyrics,
+            islandWord: islandWord, islandNextWord: islandNextWord, tracks: tracks,
             tab: SGLyricsAttributes.Tab(rawValue: tab) ?? .controls, title: title, artist: artist,
             shuffle: shuffle, repeatMode: repeatMode, timerEnd: timerEnd, timerEndOfTrack: timerEndOfTrack)
         let content = ActivityContent(state: state, staleDate: nil)

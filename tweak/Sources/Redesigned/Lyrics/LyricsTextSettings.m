@@ -93,7 +93,7 @@ SGModRow *SGRLyricsTextSizesRow(void) {
 }
 
 SGModRow *SGRLyricsGlowRow(void) {
-    SGModRow *row = SGSwitchRow(@"Lyrics glow", @"A soft glow on synced lyrics. Applies immediately.", SGRKeyLyricsGlow);
+    SGModRow *row = SGSwitchRow(@"Lyrics glow", @"A soft glow on word-synced lyrics. Applies immediately.", SGRKeyLyricsGlow);
     row.changed = ^(BOOL on) {
         [NSNotificationCenter.defaultCenter postNotificationName:SGRLyricsTextDidChangeNotification object:nil];
     };
