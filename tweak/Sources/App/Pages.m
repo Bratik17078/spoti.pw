@@ -77,8 +77,11 @@ UIViewController *SGNavbarPage(void) {
 static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
+<<<<<<< HEAD
     [more addObject:SGDynamicIslandLyricsRow()];
     [more addObject:SGLiveActivityStatusRow()];
+=======
+>>>>>>> parent of 98714e2 (heah)
     if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
     NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithObject:SGLyricsSourcesSection(redesigned)];
     if (redesigned) {

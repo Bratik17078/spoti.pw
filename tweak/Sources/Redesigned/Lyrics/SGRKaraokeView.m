@@ -653,15 +653,13 @@ static const CGFloat kTranslationLit = 0.6;
 // A sweep's word views, each put where the layout has it and told where it sits along the sweep.
 // start: NAN for words timed one by one, else when the run lights up whole.
 - (SGRKaraokeSweep *)sweepOf:(NSArray<SGKaraokeWord *> *)words font:(UIFont *)font frames:(NSArray<NSValue *> *)frames
-                     offsets:(NSArray<NSNumber *> *)offsets wholeFrom:(double)start wordSynced:(BOOL)wordSynced {
+                     offsets:(NSArray<NSNumber *> *)offsets wholeFrom:(double)start {
     if (!words.count || frames.count != words.count) return nil;
     BOOL rightToLeft = readsRightToLeft([[words valueForKey:@"text"] componentsJoinedByString:@""]);
     NSMutableArray<SGRKaraokeWordView *> *views = [NSMutableArray arrayWithCapacity:words.count];
     for (NSUInteger i = 0; i < words.count; i++) {
         SGRKaraokeWordView *view = [[SGRKaraokeWordView alloc] initWithWord:words[i] font:font rightToLeft:rightToLeft];
-        // Estimated word times are still line timing. Only real word sync may add a halo,
-        // and the pronunciation must qualify on its own rather than borrowing the lyric's timing.
-        view.glows = wordSynced && SGEnabled(SGRKeyLyricsGlow);
+        view.glows = _line.timing != SGKaraokeTimingNone && SGEnabled(SGRKeyLyricsGlow);
         CGRect frame = frames[i].CGRectValue;
         view.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
         view.offset = offsets[i].doubleValue;
@@ -688,10 +686,9 @@ static double wholeFrom(SGKaraokeLine *run, BOOL sweepsEstimates) {
     _right = layout.right;
     NSMutableArray<SGRKaraokeSweep *> *sweeps = [NSMutableArray array];
     SGRKaraokeSweep *sung = [self sweepOf:line.words font:style.lyrics frames:layout.lyricFrames offsets:layout.lyricOffsets
-                                wholeFrom:wholeFrom(line, sweepsEstimates) wordSynced:line.timing == SGKaraokeTimingWords];
+                                wholeFrom:wholeFrom(line, sweepsEstimates)];
     SGRKaraokeSweep *spoken = [self sweepOf:line.pronunciation.words font:style.pronunciation frames:layout.spokenFrames
-                                    offsets:layout.spokenOffsets wholeFrom:wholeFrom(line.pronunciation, sweepsEstimates)
-                                    wordSynced:line.pronunciation.timing == SGKaraokeTimingWords];
+                                    offsets:layout.spokenOffsets wholeFrom:wholeFrom(line.pronunciation, sweepsEstimates)];
     if (sung) [sweeps addObject:sung];
     if (spoken) [sweeps addObject:spoken];
     _sweeps = sweeps;

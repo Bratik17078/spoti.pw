@@ -4,22 +4,23 @@
 // playing in the background, so the timer keeps running there too, and with it the sleep timer.
 // The activity is started only while the app is in front, the one place ActivityKit allows it.
 #import <UIKit/UIKit.h>
-#import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #import "Core/SGCore.h"
 #import "Headers/SPTPlayer.h"
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Player/PlayerState.h"
 #import "LiveActivity.h"
+<<<<<<< HEAD
 #import "IslandLyrics.h"
 #import "IslandOverlay.h"
+=======
+>>>>>>> parent of 98714e2 (heah)
 
 API_AVAILABLE(ios(17.0))
 @interface SGLiveActivityBridge : NSObject
 @property (class, nonatomic, readonly) BOOL isShowing;
 @property (class, nonatomic, readonly) NSString *status;
 + (void)showWithView:(NSInteger)view paused:(BOOL)paused line:(NSString *)line nextLine:(NSString *)nextLine
-        islandLyrics:(BOOL)islandLyrics islandWord:(NSString *)islandWord islandNextWord:(NSString *)islandNextWord
               titles:(NSArray<NSString *> *)titles artists:(NSArray<NSString *> *)artists uris:(NSArray<NSString *> *)uris
                  tab:(NSInteger)tab title:(NSString *)title artist:(NSString *)artist shuffle:(BOOL)shuffle repeatMode:(NSInteger)repeatMode
             timerEnd:(NSDate *)timerEnd timerEndOfTrack:(BOOL)timerEndOfTrack;
@@ -109,9 +110,13 @@ static NSInteger repeatModeOf(SPTPlayerOptions *options) {
 
 // The line being sung and the one after it; before the first line, between lines and without lyrics
 // at all, a note holds the place.
+<<<<<<< HEAD
 static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islandWord, NSString **islandNextWord, BOOL *timed) {
     *islandWord = @"♪";
     *islandNextWord = @"";
+=======
+static NSString *lyricsLine(NSString *trackID, NSString **next) {
+>>>>>>> parent of 98714e2 (heah)
     NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(trackID);
     if (!lines) {
         SGKaraokeRequestLyrics(trackID);
@@ -122,18 +127,19 @@ static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islan
     }
     // Plain text has no line being sung: the note, as for a track with no lyrics.
     if (lines && SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) lines = nil;
+<<<<<<< HEAD
     *timed = lines.count > 0;
     NSInteger position = (NSInteger)SGKaraokePresentationTime(CACurrentMediaTime(), NULL, NULL);
+=======
+    NSInteger position = SGKaraokePositionMs();
+>>>>>>> parent of 98714e2 (heah)
     // With two voices at once, the one that came in first, and the one singing over it as the next.
     NSInteger index = SGKaraokeLeadLine(lines, position);
     *next = index + 1 < (NSInteger)lines.count ? SGKaraokeLineText(lines[index + 1]) : @"";
     if (index < 0) return @"♪";
     SGKaraokeLine *current = lines[index];
     BOOL nextFarOff = index + 1 == (NSInteger)lines.count || lines[index + 1].start - position > kBreakMs;
-    if (position > SGKaraokeSungEnd(current) + kBreakMs && nextFarOff) return @"♪";
-    if (current.timing == SGKaraokeTimingNone) return @"♪";
-    SGIslandLyricWords(current, position, islandWord, islandNextWord);
-    return SGKaraokeLineText(current);
+    return position > current.end + kBreakMs && nextFarOff ? @"♪" : SGKaraokeLineText(current);
 }
 
 static void clearSleepTimer(void) {
@@ -167,17 +173,21 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
     NSString *trackID = SGKaraokePlayingTrack();
     checkSleepTimer(player, state, trackID);
 
-    BOOL islandLyrics = SGFlag(SGKeyDynamicIslandLyrics, NO);
-    NSInteger view = SGFlag(SGKeyLiveActivity, NO) ? SGInt(SGKeyLiveActivityView, SGLiveActivityLyrics) : SGLiveActivityLyrics;
+    NSInteger view = SGInt(SGKeyLiveActivityView, SGLiveActivityLyrics);
     BOOL paused = state.isPaused;
     NSTimeInterval every = paused ? kPausedTick : kTick;
     if (sg_timer && sg_tickEvery != every) startTimer(every);
+<<<<<<< HEAD
     NSString *line = @"", *next = @"", *islandWord = @"", *islandNextWord = @"";
     BOOL timed = NO;
     if (view == SGLiveActivityLyrics || islandLyrics) line = lyricsLine(trackID, &next, &islandWord, &islandNextWord, &timed);
     if (islandLyrics && timed) SGIslandOverlayShow(trackID, line, next, paused);
     else SGIslandOverlayHide();
     if (!islandLyrics) islandWord = islandNextWord = @"";
+=======
+    NSString *line = @"", *next = @"";
+    if (view == SGLiveActivityLyrics) line = lyricsLine(trackID, &next);
+>>>>>>> parent of 98714e2 (heah)
 
     NSMutableArray<NSString *> *titles = [NSMutableArray array], *artists = [NSMutableArray array], *uris = [NSMutableArray array];
     if (view != SGLiveActivityLyrics) {
@@ -198,14 +208,12 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
     NSDate *sleepEnd = sg_sleepEnd;
     BOOL endOfTrack = sg_sleepTrack != nil;
 
-    NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithObjects:@(view).stringValue, paused ? @"1" : @"0", line, next, islandLyrics ? @"1" : @"0", islandWord, islandNextWord,
+    NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithObjects:@(view).stringValue, paused ? @"1" : @"0", line, next,
         @(tab).stringValue, title, artist, shuffle ? @"1" : @"0", @(repeatMode).stringValue,
         @((long long)sleepEnd.timeIntervalSince1970).stringValue, endOfTrack ? @"1" : @"0", nil];
     for (NSUInteger i = 0; i < titles.count; i++) [parts addObject:[NSString stringWithFormat:@"%@\t%@\t%@", titles[i], artists[i], uris[i]]];
     send([parts componentsJoinedByString:@"\n"], ^{
-        [SGLiveActivityBridge showWithView:view paused:paused line:line nextLine:next islandLyrics:islandLyrics
-                                 islandWord:islandWord islandNextWord:islandNextWord
-                                     titles:titles artists:artists uris:uris
+        [SGLiveActivityBridge showWithView:view paused:paused line:line nextLine:next titles:titles artists:artists uris:uris
                                         tab:tab title:title artist:artist shuffle:shuffle repeatMode:repeatMode
                                    timerEnd:sleepEnd timerEndOfTrack:endOfTrack];
     });
@@ -276,15 +284,6 @@ static void runAction(NSString *action) {
 void SGSetLiveActivityEnabled(BOOL on) {
     if (!SGFlag(SGKeyDynamicIslandLyrics, NO)) SGIslandOverlayHide();
     if (@available(iOS 17.0, *)) {
-        // Either setting can keep the single activity alive. Changing its presentation must not
-        // reset a sleep timer or end an activity still requested by the other switch.
-        on = on || SGFlag(SGKeyDynamicIslandLyrics, NO);
-        if (on && sg_timer) {
-            sg_shown = nil;
-            sg_lastStart = nil;
-            tick();
-            return;
-        }
         [sg_timer invalidate];
         sg_timer = nil;
         sg_shown = nil;
@@ -314,7 +313,6 @@ void SGSetLiveActivityEnabled(BOOL on) {
             }];
         });
         startTimer(kTick);
-        tick();
         SGLog(@"live activity: on");
     }
 }
@@ -329,7 +327,7 @@ NSString *SGLiveActivityStatus(void) {
         // It was the redesign's alone until it moved to Shared/; whoever had it on keeps it on.
         SGMigrateKey(SGKeyLiveActivityWas, SGKeyLiveActivity);
         SGMigrateKey(SGKeyLiveActivityViewWas, SGKeyLiveActivityView);
-        BOOL on = SGFlag(SGKeyLiveActivity, NO) || SGFlag(SGKeyDynamicIslandLyrics, NO);
+        BOOL on = SGFlag(SGKeyLiveActivity, NO);
         // Off, one left from a launch before the switch went off is ended.
         dispatch_async(dispatch_get_main_queue(), ^{
             if (on) SGSetLiveActivityEnabled(YES);
