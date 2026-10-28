@@ -13,28 +13,6 @@ public final class SGLiveActivityBridge: NSObject {
     }
 
     @objc public static var isShowing: Bool { current != nil }
-    private static let lastFailure = OSAllocatedUnfairLock(initialState: Optional<String>.none)
-
-    // A signing app may remove extensions. Report that separately from an iOS authorization failure.
-    private static let configurationIssue: String? = {
-        guard Bundle.main.object(forInfoDictionaryKey: "NSSupportsLiveActivities") as? Bool == true else {
-            return "Live Activities missing from this build"
-        }
-        let plugins = Bundle.main.builtInPlugInsURL.flatMap {
-            try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil)
-        } ?? []
-        guard plugins.contains(where: { Bundle(url: $0)?.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "SpotifyGlassLiveActivity" }) else {
-            return "Live Activity extension missing from installed app"
-        }
-        return nil
-    }()
-
-    @objc public static var status: String {
-        if current != nil { return "Running; shown outside Spotify" }
-        if let issue = configurationIssue { return issue }
-        if !ActivityAuthorizationInfo().areActivitiesEnabled { return "Disabled in iOS Settings" }
-        return lastFailure.withLock { $0 } ?? "Waiting for playback"
-    }
 
     // Updates and ends go out one at a time in the order asked for, since ActivityKit applies
     // concurrent ones in whatever order they finish. An update still waiting gives way to a newer one.
@@ -105,20 +83,14 @@ public final class SGLiveActivityBridge: NSObject {
             queue(.update(activity.id, content))
             return
         }
-        if let issue = configurationIssue {
-            log.error("[spotifyglass] live activity: \(issue, privacy: .public)")
-            return
-        }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             log.notice("[spotifyglass] live activity: activities are off for this app")
             return
         }
         do {
             let activity = try Activity.request(attributes: SGLyricsAttributes(), content: content, pushType: nil)
-            lastFailure.withLock { $0 = nil }
             log.notice("[spotifyglass] live activity: started \(activity.id, privacy: .public)")
         } catch {
-            lastFailure.withLock { $0 = "Couldn't start: \(error.localizedDescription)" }
             log.error("[spotifyglass] live activity: request failed: \(String(describing: error), privacy: .public)")
         }
     }

@@ -73,20 +73,6 @@ Shared:
 
     Privacy/      telemetry blocking and its counters, and the Search switches that force their flags off (Clutter.m)
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
-    PlaybackRules/ exact-track skips, exact title + main artist version skips across releases, and 30-day
-                  breaks. Player > Playback rules manages them; the player's more menu adds one for its
-                  captured track. ArtistSkip.x applies both artist blocks and playback rules, watches the
-                  shared state observer as well as now playing info, and pauses after 12 blocked tracks
-                  in 15 seconds to stop an all-blocked queue looping. Rules apply immediately; expired
-                  breaks remain visible as ended and no longer match. All data stays in settings backups
-    LyricCards/   the player's more menu and Player > Lyrics > Create lyric card open a line picker with
-                  Midnight, Paper and Artwork styles. Up to six lines / 280 characters, previewed with the
-                  export's own renderer at 1080 × 1350. Song metadata and lyrics are captured on entry;
-                  artwork comes from that track's metadata, never from the next song. Share uses the
-                  system share sheet. A selection that cannot fit disables Share rather than clipping it
-    AudioVisualization/ allocation-free spectrum and waveform analysis fed by MusicHaptics.x's existing
-                  RemoteIO tap, independently of its haptics switch. A bounded, atomic queue holds frames
-                  until their output latency elapses; stale frames fade out when there is no local audio
     Flags/        Spotify's remote-config flags: the provider hook, the generated table, the All flags page and the Labs page
     Gestures/     the double tap zones on the player: the grid, what each cell does, the recognizer (each look hooks it on)
     HeadGestures/ compatible AirPods and Beats' public head-motion stream: single and double nods,
@@ -177,16 +163,6 @@ Shared:
                   and the expanded presentation has the full lines. iOS draws
                   the Island on supported hardware and a Lock Screen activity elsewhere. Both switches
                   off ends the activity; missing or untimed lyrics show a note, never guessed text.
-                  While Spotify itself is foreground, iOS hides its system Live Activity: IslandOverlay
-                  supplies a black capsule below the safe area, expanding automatically into the current
-                  and next synced lines. Tap or swipe up collapses it; tap or a new track reopens it.
-                  An instrumental gap folds it to a thin capsule and singing opens it again. It owns a
-                  non-key, touch-through window on the active iPhone scene, hides in landscape and on
-                  resigning active, supports Dynamic Type and Reduce Motion, and adds no timer. It works
-                  even if system Live Activities are disabled or the signing tool removed the widget.
-                  The System Live Activity status row reports a missing extension, disabled authorization
-                  or the last iOS start error, instead of silently appearing to work. The player clock
-                  also falls back to the shared state observer if its direct player reference is absent.
                   Island lyrics use the same Bluetooth-compensated clock as the player. To verify on
                   a device: enable Island lyrics with Live Activity off, then change tracks and pause;
                   enable Live Activity and choose Queue, checking that only the Lock Screen changes;
@@ -229,10 +205,6 @@ Redesigned:
                   Shared/Player's Speed and pitch, which draws in the menu it opens. Moving background blends
                   artwork colours with pre-blurred artwork textures drifting and rotating behind them; it rests
                   on pause, during player transitions, off screen, in Low Power Mode and with Reduce Motion
-                  SGRVisualizer adds an opt-in spectrum or waveform behind the artwork, with its own
-                  style and intensity on Player > Now playing. It uses Shared/AudioVisualization, stops
-                  analysis when inactive, and rests under the same conditions as the moving background.
-                  The visualizer is redesigned-only; playback rules and lyric cards work under both looks
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): each timed syllable fills over its own
                   start and end, with a soft glow and a small lift and scale while sung (Reduce Motion keeps the fill

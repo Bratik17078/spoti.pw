@@ -26,9 +26,6 @@
 #import "Core/SGCore.h"
 #import "Shared/Haptics/Haptics.h"
 #import "SpeedPitch.h"
-#import "PlayerState.h"
-#import "Shared/PlaybackRules/PlaybackRules.h"
-#import "Shared/LyricCards/LyricCards.h"
 
 // A menu this soon after the more button's tap is the player's.
 static const NSTimeInterval kMenuAfterTap = 3;
@@ -89,8 +86,6 @@ static char kBlockKey, kDecidedKey, kWatchedKey, kShownAtKey, kRowsInKey;
 @interface SGSpeedPitchView : UIView
 @property (nonatomic, weak) UITableView *table;
 @property (nonatomic) BOOL inFooter;
-@property (nonatomic, weak) UIViewController *menu;
-@property (nonatomic, strong) SPTPlayerTrack *menuTrack;
 @end
 
 @implementation SGSpeedPitchView {
@@ -104,7 +99,6 @@ static char kBlockKey, kDecidedKey, kWatchedKey, kShownAtKey, kRowsInKey;
     float _shownSpeed, _shownPitch;
     NSTimeInterval _speedSentAt;
     BOOL _speedPending;
-    UIButton *_rules, *_lyricCard;
 }
 
 static UIImage *symbol(NSString *name, CGFloat size, UIImageSymbolWeight weight) {
@@ -225,32 +219,13 @@ static void placeTick(UISlider *slider) {
     _pitch.accessibilityLabel = @"Pitch";
     for (UIView *view in @[_speedName, _speedValue, _speed, _pitchName, _pitchValue, _pitch]) [_panel addSubview:view];
 
-    _rules = [self actionButton:@"Playback rules" symbol:@"minus.circle" action:@selector(playbackRules)];
-    _lyricCard = [self actionButton:@"Create lyric card" symbol:@"quote.bubble" action:@selector(lyricCard)];
-
     [self refresh];
     return self;
 }
 
 + (CGFloat)heightOpen:(BOOL)open {
-    return 3 * kRowHeight + (open ? 2 * kSliderBlockHeight + kPanelBottom : 0);
+    return kRowHeight + (open ? 2 * kSliderBlockHeight + kPanelBottom : 0);
 }
-
-- (UIButton *)actionButton:(NSString *)title symbol:(NSString *)name action:(SEL)action {
-    UIButtonConfiguration *config = [UIButtonConfiguration plainButtonConfiguration];
-    config.title = title;
-    config.image = paintedSymbol(name, 20, UIImageSymbolWeightRegular, secondary());
-    config.imagePadding = 16;
-    config.baseForegroundColor = primary();
-    config.contentInsets = NSDirectionalEdgeInsetsMake(0, kSideMargin, 0, kSideMargin);
-    UIButton *button = [UIButton buttonWithConfiguration:config primaryAction:nil];
-    button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeading;
-    [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
-    [self addSubview:button];
-    return button;
-}
-- (void)playbackRules { if (self.menu) SGPresentPlaybackRuleActions(self.menu, self.menuTrack, _rules); }
-- (void)lyricCard { if (self.menu) SGPresentLyricCard(self.menu, self.menuTrack); }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
@@ -265,10 +240,6 @@ static void placeTick(UISlider *slider) {
     _summary.frame = CGRectMake(summaryX, 0, MAX(0, CGRectGetMinX(_chevron.frame) - kGrid - summaryX), kRowHeight);
 
     _panel.frame = CGRectMake(0, kRowHeight, width, 2 * kSliderBlockHeight + kPanelBottom);
-    _panel.userInteractionEnabled = sg_open;
-    CGFloat extrasY = kRowHeight + (sg_open ? 2 * kSliderBlockHeight + kPanelBottom : 0);
-    _rules.frame = CGRectMake(0, extrasY, width, kRowHeight);
-    _lyricCard.frame = CGRectMake(0, extrasY + kRowHeight, width, kRowHeight);
     CGFloat y = 0;
     for (NSArray<UIView *> *line in @[@[_speedName, _speedValue, _speed], @[_pitchName, _pitchValue, _pitch]]) {
         line[0].frame = CGRectMake(side, y + 4, width / 2 - side, 24);
@@ -593,9 +564,6 @@ static void install(UIViewController *menu) {
         block = [[SGSpeedPitchView alloc] initWithFrame:CGRectMake(0, 0, width, [SGSpeedPitchView heightOpen:sg_open])];
         block.table = table;
         block.inFooter = !headerFree;
-        block.menu = menu;
-        block.menuTrack = SGPlayerState().track;
-        block.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
         objc_setAssociatedObject(menu, &kBlockKey, block, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         if (block.inFooter) table.tableFooterView = block;
         else table.tableHeaderView = block;

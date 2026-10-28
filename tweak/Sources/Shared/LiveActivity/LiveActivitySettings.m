@@ -9,18 +9,12 @@ static NSArray<NSString *> *viewNames(void) {
 
 SGModRow *SGDynamicIslandLyricsRow(void) {
     if (@available(iOS 17.0, *)) {
-        SGModRow *row = SGOptionRow(@"Dynamic Island lyrics", @"Full synced lines in an expanding panel inside Spotify.", SGKeyDynamicIslandLyrics);
-        row.info = @"While Spotify is open, a black capsule below the Island automatically expands to show the current and next synced lines. Tap or swipe up to collapse it; tap to reopen. Outside Spotify, the system Live Activity shows compact lyrics and a Lock Screen card. Live Activities must be allowed in iOS Settings; the in-app panel works independently. Applies immediately.";
+        SGModRow *row = SGOptionRow(@"Dynamic Island lyrics", @"Sung words directly in the Island. Also shows a Lock Screen Live Activity.", SGKeyDynamicIslandLyrics);
+        row.info = @"Shows the sung word and the next word directly in the Island as the song progresses, without a gesture. Songs timed only by line show a short opening phrase; songs without synced lyrics show a music note. iOS controls the available space and update delivery. Applies immediately; Live Activities must be allowed for Spotify in iOS Settings.";
         row.changed = ^(BOOL on) { SGSetLiveActivityEnabled(SGFlag(SGKeyLiveActivity, NO)); };
         return row;
     }
     return SGStatRow(@"Dynamic Island lyrics", ^NSString *{ return @"Needs iOS 17"; });
-}
-
-SGModRow *SGLiveActivityStatusRow(void) {
-    SGModRow *row = SGStatRow(@"System Live Activity", ^NSString *{ return SGLiveActivityStatus(); });
-    row.visible = ^BOOL { return SGFlag(SGKeyLiveActivity, NO) || SGFlag(SGKeyDynamicIslandLyrics, NO); };
-    return row;
 }
 
 UIViewController *SGLiveActivitySettingsPage(void) {
@@ -29,7 +23,7 @@ UIViewController *SGLiveActivitySettingsPage(void) {
     SGModRow *view = SGChoiceRow(@"Shows", nil, SGKeyLiveActivityView, viewNames(), SGLiveActivityLyrics);
     return [[SGModPage alloc] initWithTitle:@"Live Activity" intro:nil sections:@[
         SGSection(nil, @[on, view]),
-        SGSection(nil, @[SGDynamicIslandLyricsRow(), SGLiveActivityStatusRow()]),
+        SGSection(nil, @[SGDynamicIslandLyricsRow()]),
     ] footer:nil];
 }
 

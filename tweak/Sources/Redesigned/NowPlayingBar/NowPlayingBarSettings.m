@@ -4,7 +4,6 @@
 #import "Settings/SGModPage.h"
 #import "NowPlayingBar.h"
 #import "Redesigned/Player/Player.h"
-#import "Redesigned/Player/SGRVisualizer.h"
 
 UIViewController *SGRNowPlayingBarSettingsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing" intro:SGRestartNote sections:@[
@@ -14,6 +13,5 @@ UIViewController *SGRNowPlayingBarSettingsPage(void) {
         SGSection(nil, @[
             SGSwitchRow(@"Moving background", nil, SGRKeyPlayerMotion),
         ]),
-        SGRVisualizerSection(),
     ] footer:nil];
 }

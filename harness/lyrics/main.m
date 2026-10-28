@@ -24,7 +24,6 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <mach/mach_time.h>
-#import <QuartzCore/QuartzCore.h>
 #import "Redesigned/Lyrics/SGRKaraokeView.h"
 // HEAD's sources (build.sh old) may be from before the lyrics had anything but their words.
 #if __has_include("Redesigned/Lyrics/LyricsText.h")
@@ -32,9 +31,6 @@
 #endif
 #if __has_include("Shared/LiveActivity/IslandLyrics.h")
 BOOL SGCheckIslandLyrics(void);
-#endif
-#if __has_include("Shared/LiveActivity/IslandOverlay.h")
-#import "Shared/LiveActivity/IslandOverlay.h"
 #endif
 
 NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml);
@@ -187,14 +183,10 @@ static void timedTick(id self, SEL _cmd) {
 
 @interface SGHarnessDelegate : UIResponder <UIApplicationDelegate>
 @property (nonatomic, strong) UIWindow *window;
-- (BOOL)showInScene:(UIWindowScene *)scene;
 @end
 
 @implementation SGHarnessDelegate
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)options {
-    return YES;
-}
-- (BOOL)showInScene:(UIWindowScene *)scene {
     NSUserDefaults *args = NSUserDefaults.standardUserDefaults;
 #if __has_include("Shared/LiveActivity/IslandLyrics.h")
     if ([args boolForKey:@"checkIslandLyrics"]) exit(SGCheckIslandLyrics() ? 0 : 2);
@@ -218,8 +210,7 @@ static void timedTick(id self, SEL _cmd) {
         sg_tick = method_setImplementation(tick, (IMP)timedTick);
     }
 
-    self.window = [[UIWindow alloc] initWithWindowScene:scene];
-    self.window.frame = scene.coordinateSpace.bounds;
+    self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
     // -light 1: the system in light mode, as a phone set to it would put the player's panes.
     self.window.overrideUserInterfaceStyle = [args boolForKey:@"light"] ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
     UIViewController *root = [UIViewController new];
@@ -241,50 +232,9 @@ static void timedTick(id self, SEL _cmd) {
     [root.view addSubview:caption];
     [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *timer) {
         caption.text = [NSString stringWithFormat:@"%@  %.1f s", song, SGKaraokePositionMs() / 1000.0];
-#if __has_include("Shared/LiveActivity/IslandOverlay.h")
-        if ([args boolForKey:@"islandOverlay"]) {
-            BOOL running = NO;
-            NSInteger ms = (NSInteger)SGKaraokePresentationTime(CACurrentMediaTime(), &running, NULL);
-            NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(@"harness");
-            NSInteger index = SGKaraokeLeadLine(lines, ms);
-            if (SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) { SGIslandOverlayHide(); return; }
-            SGKaraokeLine *line = index >= 0 ? lines[(NSUInteger)index] : nil;
-            BOOL gap = !line || ms > SGKaraokeSungEnd(line) + 4000;
-            NSString *next = index + 1 < (NSInteger)lines.count ? SGKaraokeLineText(lines[(NSUInteger)(index + 1)]) : @"";
-            SGIslandOverlayShow(@"harness", gap ? @"♪" : SGKaraokeLineText(line), next, !running);
-        }
-#endif
     }];
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
-#if __has_include("Shared/LiveActivity/IslandOverlay.h")
-    if ([args objectForKey:@"overlayChecksAt"]) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"overlayChecksAt"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIWindow *overlay = nil;
-            for (UIWindow *window in self.window.windowScene.windows)
-                if ([window isKindOfClass:NSClassFromString(@"SGIslandOverlayWindow")] && !window.hidden) overlay = window;
-            UIControl *panel = (UIControl *)overlay.rootViewController.view.subviews.firstObject;
-            CGRect frame = panel.frame;
-            BOOL geometry = panel && frame.size.height >= 88 && CGRectGetMinY(frame) >= self.window.safeAreaInsets.top
-                && CGRectGetMinX(frame) >= 0 && CGRectGetMaxX(frame) <= overlay.bounds.size.width;
-            UIView *outside = [overlay hitTest:CGPointMake(overlay.bounds.size.width / 2, overlay.bounds.size.height - 20) withEvent:nil];
-            BOOL passthrough = overlay && outside == nil && self.window.isKeyWindow;
-            NSLog(@"[harness] Island overlay layout %@, touches %@", geometry ? @"PASS" : @"FAIL", passthrough ? @"PASS" : @"FAIL");
-            if (!geometry || !passthrough) exit(2);
-            [panel sendActionsForControlEvents:UIControlEventTouchUpInside];
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                BOOL collapsed = panel.bounds.size.height == 12;
-                [panel sendActionsForControlEvents:UIControlEventTouchUpInside];
-                BOOL expanded = panel.bounds.size.height >= 88;
-                SGIslandOverlayHide();
-                BOOL hidden = overlay.hidden && self.window.isKeyWindow;
-                NSLog(@"[harness] Island overlay collapse %@, expand %@, cleanup %@ -- %@", collapsed ? @"PASS" : @"FAIL",
-                      expanded ? @"PASS" : @"FAIL", hidden ? @"PASS" : @"FAIL", collapsed && expanded && hidden ? @"PASS" : @"FAIL");
-                if (!collapsed || !expanded || !hidden) exit(2);
-            });
-        });
-    }
-#endif
     if ([args objectForKey:@"checkNoGlowAt"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"checkNoGlowAt"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             Class wordClass = NSClassFromString(@"SGRKaraokeWordView");
@@ -325,18 +275,6 @@ static void timedTick(id self, SEL _cmd) {
     }
 #endif
     return YES;
-}
-@end
-
-@interface SGHarnessSceneDelegate : UIResponder <UIWindowSceneDelegate>
-@property (nonatomic, strong) UIWindow *window;
-@end
-@implementation SGHarnessSceneDelegate
-- (void)scene:(UIScene *)scene willConnectToSession:(UISceneSession *)session options:(UISceneConnectionOptions *)options {
-    if (![scene isKindOfClass:UIWindowScene.class]) return;
-    SGHarnessDelegate *app = (SGHarnessDelegate *)UIApplication.sharedApplication.delegate;
-    [app showInScene:(UIWindowScene *)scene];
-    self.window = app.window;
 }
 @end
 
