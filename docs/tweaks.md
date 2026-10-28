@@ -169,6 +169,7 @@ Shared:
                   LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
                   by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
 <<<<<<< HEAD
+<<<<<<< HEAD
                   in front; its switch and its view apply at once. Dynamic Island lyrics, also on
                   Player > Lyrics, independently enables the activity and puts synced lines in the
                   Island even if the Lock Screen view is Queue or Control menu. The compact Island
@@ -194,6 +195,9 @@ Shared:
                   disable Island lyrics, checking Queue remains; disable both, checking it ends;
                   relaunch with just Island lyrics enabled, checking it starts again. Untimed lyrics
                   should show a note. Test compact and expanded Island presentations on supported iPhones
+=======
+                  in front; its switch and its view apply at once
+>>>>>>> parent of 98714e2 (heah)
 =======
                   in front; its switch and its view apply at once
 >>>>>>> parent of 98714e2 (heah)

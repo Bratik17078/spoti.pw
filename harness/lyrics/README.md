@@ -41,6 +41,7 @@ Untimed `static` and `spotify-static` must have no word glow. Compare a timed fi
 `-spotifyglass.redesign.lyricsGlow 0` and `1`: the fill should stay the same, with only the glow changing.
 On a device, Mod Settings > Player > Lyrics > Lyrics glow applies immediately to both lyrics surfaces.
 <<<<<<< HEAD
+<<<<<<< HEAD
 `-checkIslandLyrics 1` runs the real compact-Island text selector and exits with a result. It checks
 word boundaries, gaps, seeking back, joined syllables, unspaced scripts, overlapping words, identical
 starts, and line-timed/untimed fallbacks. Island text uses real word times only; estimated words
@@ -53,6 +54,8 @@ right-to-left fixture, rotation, foreground/background, and automatic expansion 
 `-song spotify-line -spotifyglass.lyricsSimulateWords 1 -checkNoGlowAt 2` checks the actual word
 views and layer shadow opacities, failing if any may glow. Repeat with `spotify-static`, and with
 `boundaries -spotifyglass.redesign.lyricsGlow 0`; all three should report `no-glow check ... PASS`.
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
 

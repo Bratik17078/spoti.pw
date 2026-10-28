@@ -78,8 +78,11 @@ static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
 <<<<<<< HEAD
+<<<<<<< HEAD
     [more addObject:SGDynamicIslandLyricsRow()];
     [more addObject:SGLiveActivityStatusRow()];
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
     if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];

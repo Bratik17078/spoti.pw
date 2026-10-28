@@ -30,12 +30,15 @@
 #import "Redesigned/Lyrics/LyricsText.h"
 #endif
 <<<<<<< HEAD
+<<<<<<< HEAD
 #if __has_include("Shared/LiveActivity/IslandLyrics.h")
 BOOL SGCheckIslandLyrics(void);
 #endif
 #if __has_include("Shared/LiveActivity/IslandOverlay.h")
 #import "Shared/LiveActivity/IslandOverlay.h"
 #endif
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
 
@@ -257,6 +260,7 @@ static void timedTick(id self, SEL _cmd) {
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
 <<<<<<< HEAD
+<<<<<<< HEAD
 #if __has_include("Shared/LiveActivity/IslandOverlay.h")
     if ([args objectForKey:@"overlayChecksAt"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"overlayChecksAt"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -306,6 +310,8 @@ static void timedTick(id self, SEL _cmd) {
             if (!ok) exit(2);
         });
     }
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
     if ([args objectForKey:@"openMenu"]) {

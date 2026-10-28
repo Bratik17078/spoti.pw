@@ -11,8 +11,11 @@
 #import "Shared/Player/PlayerState.h"
 #import "LiveActivity.h"
 <<<<<<< HEAD
+<<<<<<< HEAD
 #import "IslandLyrics.h"
 #import "IslandOverlay.h"
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
 
@@ -111,9 +114,13 @@ static NSInteger repeatModeOf(SPTPlayerOptions *options) {
 // The line being sung and the one after it; before the first line, between lines and without lyrics
 // at all, a note holds the place.
 <<<<<<< HEAD
+<<<<<<< HEAD
 static NSString *lyricsLine(NSString *trackID, NSString **next, NSString **islandWord, NSString **islandNextWord, BOOL *timed) {
     *islandWord = @"♪";
     *islandNextWord = @"";
+=======
+static NSString *lyricsLine(NSString *trackID, NSString **next) {
+>>>>>>> parent of 98714e2 (heah)
 =======
 static NSString *lyricsLine(NSString *trackID, NSString **next) {
 >>>>>>> parent of 98714e2 (heah)
@@ -128,8 +135,12 @@ static NSString *lyricsLine(NSString *trackID, NSString **next) {
     // Plain text has no line being sung: the note, as for a track with no lyrics.
     if (lines && SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) lines = nil;
 <<<<<<< HEAD
+<<<<<<< HEAD
     *timed = lines.count > 0;
     NSInteger position = (NSInteger)SGKaraokePresentationTime(CACurrentMediaTime(), NULL, NULL);
+=======
+    NSInteger position = SGKaraokePositionMs();
+>>>>>>> parent of 98714e2 (heah)
 =======
     NSInteger position = SGKaraokePositionMs();
 >>>>>>> parent of 98714e2 (heah)
@@ -178,12 +189,17 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
     NSTimeInterval every = paused ? kPausedTick : kTick;
     if (sg_timer && sg_tickEvery != every) startTimer(every);
 <<<<<<< HEAD
+<<<<<<< HEAD
     NSString *line = @"", *next = @"", *islandWord = @"", *islandNextWord = @"";
     BOOL timed = NO;
     if (view == SGLiveActivityLyrics || islandLyrics) line = lyricsLine(trackID, &next, &islandWord, &islandNextWord, &timed);
     if (islandLyrics && timed) SGIslandOverlayShow(trackID, line, next, paused);
     else SGIslandOverlayHide();
     if (!islandLyrics) islandWord = islandNextWord = @"";
+=======
+    NSString *line = @"", *next = @"";
+    if (view == SGLiveActivityLyrics) line = lyricsLine(trackID, &next);
+>>>>>>> parent of 98714e2 (heah)
 =======
     NSString *line = @"", *next = @"";
     if (view == SGLiveActivityLyrics) line = lyricsLine(trackID, &next);

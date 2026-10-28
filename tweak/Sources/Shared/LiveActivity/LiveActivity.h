@@ -44,9 +44,12 @@ UIViewController *SGLiveActivitySettingsPage(void);
 // What the root's row reads out beside its chevron: the view shown, or Off.
 NSString *SGLiveActivitySummary(void);
 <<<<<<< HEAD
+<<<<<<< HEAD
 @class SGModRow;
 SGModRow *SGDynamicIslandLyricsRow(void);
 SGModRow *SGLiveActivityStatusRow(void);
 NSString *SGLiveActivityStatus(void);
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)

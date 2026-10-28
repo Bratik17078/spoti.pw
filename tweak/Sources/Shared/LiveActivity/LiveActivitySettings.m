@@ -8,6 +8,7 @@ static NSArray<NSString *> *viewNames(void) {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 SGModRow *SGDynamicIslandLyricsRow(void) {
     if (@available(iOS 17.0, *)) {
         SGModRow *row = SGOptionRow(@"Dynamic Island lyrics", @"Full synced lines in an expanding panel inside Spotify.", SGKeyDynamicIslandLyrics);
@@ -26,6 +27,8 @@ SGModRow *SGLiveActivityStatusRow(void) {
 
 =======
 >>>>>>> parent of 98714e2 (heah)
+=======
+>>>>>>> parent of 98714e2 (heah)
 UIViewController *SGLiveActivitySettingsPage(void) {
     SGModRow *on = SGOptionRow(@"Live Activity", nil, SGKeyLiveActivity);
     on.changed = ^(BOOL value) { SGSetLiveActivityEnabled(value); };
@@ -33,7 +36,10 @@ UIViewController *SGLiveActivitySettingsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Live Activity" intro:nil sections:@[
         SGSection(nil, @[on, view]),
 <<<<<<< HEAD
+<<<<<<< HEAD
         SGSection(nil, @[SGDynamicIslandLyricsRow(), SGLiveActivityStatusRow()]),
+=======
+>>>>>>> parent of 98714e2 (heah)
 =======
 >>>>>>> parent of 98714e2 (heah)
     ] footer:nil];
