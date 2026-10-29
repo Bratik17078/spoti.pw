@@ -21,6 +21,7 @@
 
 void SGRHarnessPlayFrom(NSInteger ms);
 void SGRHarnessSetTrack(NSString *uri, NSString *imageURI, BOOL paused);
+void SGRHarnessCheckSkipping(void);
 
 static NSString *scenario(void) {
     const char *value = getenv("HARNESS_SCENARIO");
@@ -483,7 +484,8 @@ static void loadLyrics(void) {
         NSLog(@"[harness] hit on the title: %@", NSStringFromClass([self.window hitTest:onTitle withEvent:nil].class));
         NSLog(@"[harness] hit on the lines: %@", NSStringFromClass([self.window hitTest:onLines withEvent:nil].class));
     });
-    if ([scenario() isEqualToString:@"artwork"]) [self runArtworkChecks];
+    if ([scenario() isEqualToString:@"skipping"]) SGRHarnessCheckSkipping();
+    else if ([scenario() isEqualToString:@"artwork"]) [self runArtworkChecks];
     else if ([scenario() isEqualToString:@"look"]) [self runLook];
     else if ([scenario() isEqualToString:@"scroll"]) [self runScrollChecks];
     else if ([scenario() isEqualToString:@"lyrics-layout"]) [self runLyricsLayoutChecks];

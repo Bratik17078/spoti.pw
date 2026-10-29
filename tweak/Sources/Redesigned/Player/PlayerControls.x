@@ -137,13 +137,14 @@ static void animateSkipGlyph(SGRGlyphView *glyph, BOOL next) {
         return;
     }
     UIView *host = glyph.superview;
-    if (!glyph.window || !host || glyph.alpha < 0.01) return;
+    if (!glyph.window || !host) return;
 
     UIView *old = objc_getAssociatedObject(glyph, &kSkipMotionKey);
-    [old.layer removeAllAnimations];
-    [old removeFromSuperview];
+    // Invalidate before cancelling: UIKit may run the old completion synchronously.
     objc_setAssociatedObject(glyph, &kSkipMotionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    glyph.hidden = NO;
+    for (UIView *piece in old.subviews) [piece.layer removeAllAnimations];
+    [old removeFromSuperview];
+    glyph.alpha = 1;
 
     if (SGRReduceMotion()) {
         [glyph.layer removeAllAnimations];
@@ -175,7 +176,8 @@ static void animateSkipGlyph(SGRGlyphView *glyph, BOOL next) {
     [motion addSubview:entering];
     [motion addSubview:middle];
     [motion addSubview:leaving];
-    glyph.hidden = YES;
+    // Encore stacks observe hidden and can mutate their arranged subviews during a skip.
+    glyph.alpha = 0;
 
     [UIView animateKeyframesWithDuration:kSkipMotionDuration delay:0
                                  options:UIViewKeyframeAnimationOptionCalculationModeCubic
@@ -194,7 +196,7 @@ static void animateSkipGlyph(SGRGlyphView *glyph, BOOL next) {
         if (objc_getAssociatedObject(glyph, &kSkipMotionKey) != motion) return;
         objc_setAssociatedObject(glyph, &kSkipMotionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [motion removeFromSuperview];
-        glyph.hidden = NO;
+        glyph.alpha = 1;
     }];
 }
 

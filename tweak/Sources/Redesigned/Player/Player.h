@@ -9,6 +9,7 @@
 //     PlayerArtwork.x    the cover's corners, shadow and paused shrink, the lyric preview under it hidden
 //     PlayerHeader.x     glass behind the close and more buttons
 //     PlayerControls.x   previous, play and next as bare glyphs, the Lock Screen's skip motion, monospaced times
+//     PlayerSkipping.x   rapid skips coalesced to a queue destination, one playback command at a time
 //     PlayerFooter.x     share gone, lyrics, Connect and queue as one row of three glyphs
 //     PlayerCards.x      every card under the player collapsed, so the list closes up
 //     PlayerScroll.x     the list held at its top, so the player is one screen and cannot be scrolled up

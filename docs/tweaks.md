@@ -201,7 +201,9 @@ Redesigned:
     NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
     Player/       the redesigned full screen player (Player.h lists its files), including the Lock Screen's
-                  animated Previous and Next glyphs; its more button is handed to
+                  animated Previous and Next glyphs. PlayerSkipping.x retains the latest queue destination
+                  during rapid taps and artwork swipes, with only one playback command in flight;
+                  a timeout clears pending input without replaying it. Its more button is handed to
                   Shared/Player's Speed and pitch, which draws in the menu it opens. Moving background blends
                   artwork colours with pre-blurred artwork textures drifting and rotating behind them; it rests
                   on pause, during player transitions, off screen, in Low Power Mode and with Reduce Motion

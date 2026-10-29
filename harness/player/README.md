@@ -24,6 +24,11 @@ come late, out of order, or not at all.
 
 `HARNESS_SCENARIO` picks what the harness does:
 
+- `skipping` drives the real skip coordinator with a delayed fake player: three quick swipes must
+  reach D with only B and D commanded, loading must hold the second command, reversing direction
+  must retain the last choice, backward swipes must handle a restart before stepping through history,
+  and switching playlists must discard the old destination. An overlapping command fails an assertion.
+  The log ends with `rapid skip checks: PASS`.
 - `lyrics` (default) opens the lyrics at 2 s, closes them at 6 and opens them again at 10.
 - `lyrics-layout` retains an unhidden neighbouring cover cell outside the viewport and rapidly
   opens/closes/reopens lyrics. Checks the selected cover is visible, the final lyrics surface fills
